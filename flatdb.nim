@@ -7,32 +7,18 @@ import os
 import random
 import strutils
 import oids
+
 randomize()
 
 
 ## this is the custom build 'database' for nimCh4t 
 ## this stores msg lines as json but seperated by "\n"
-## This is not a real database, so expect a few quirks.
+## This is not a _real_ database, so expect a few quirks.
 
 ## This database is designed like:
 ##  - Mostly append only (append only is fast)
 ##     - Update is inefficent (has to write whole database again)
 
-
-
-###########################################################################################
-## Naive module for performance-testing
-import times
-
-# proc isFilled(hcode: Hash): bool {.inline.} =
-#   result = hcode != 0
-
-template timeIt*(name: string, p: untyped): stmt =
-  ## Performs timing of the block call, and makes output into stdout.
-  let timeStart = cpuTime()
-  p
-  echo name, ": ", formatFloat((cpuTime() - timeStart) * 1000000, precision=12), " μs"
-###########################################################################################
 type 
   FlatDb* = ref object 
     path*: string
@@ -43,6 +29,7 @@ type
                        # else it gets called by every db.append()! 
                        # so set this to true if you want to append a lot of lines in bulk
                        # set this to false when finished and call db.stream.flush() once.
+                       # TODO should this be db.stream.flush or db.flush??
   
   Order* = enum
     ASC # search value string
@@ -119,9 +106,9 @@ proc drop*(db: FlatDb) =
   db.nodes.clear()
 
 proc store*(db: FlatDb, nodes: seq[JsonNode]) = 
-  ## DELETES EVERYTHING
   ## write every json node to the db.
   ## overwriteing everything.
+  ## but creates a backup first
   echo "----------- Store got called on: ", db.path
   db.backup()
   db.drop()
@@ -248,13 +235,6 @@ proc notExists*(db: FlatDb, matcher: proc (x: JsonNode): bool ): bool =
     return true
   return false
 
-# template matcher(stmt):
-  # proc (x: JsonNode): bool = 
-      # yield
-      # stmt
-      # return x[key].getStr() == val
-
-
 
 proc equal*(key: string, val: string): proc = 
   return proc (x: JsonNode): bool = 
@@ -320,9 +300,6 @@ proc `not`*(p1: proc (x: JsonNode): bool): proc (x: JsonNode): bool =
 
 
 
-# proc sort(nodes: seq[JsonNode], keyname:string, order: Order ): seq[JsonNode] = 
-#   discard
-
 proc close(db: FlatDb) = 
   db.stream.flush()
   db.stream.close()
@@ -330,21 +307,16 @@ proc close(db: FlatDb) =
 proc keepIf*(db: FlatDb, matcher: proc) = 
   ## filters the database file, only lines that match `matcher`
   ## will be in the new file.
-  ##
-  ## This does the filtering in a special way,  
-  ## it creates a tmp database, writes entry by entry in this file
-  ## then moves tmp database to original db. 
-  ##
-  ## this creates a tmp file!
-  let tmpPath = db.path & ".tmp"
-  var tmpDb = newFlatDb(tmpPath, false)
-  tmpDb.store db.query(matcher)
-  tmpDb.close()
-  db.stream.close()
-  removeFile db.path
-  moveFile(tmpPath, db.path)
-  db.stream = newFileStream(db.path, fmReadWriteExisting)  
-  discard db.load()
+  db.store db.query matcher
+  # let tmpPath = db.path & ".tmp"
+  # var tmpDb = newFlatDb(tmpPath, false)
+  # tmpDb.store db.query(matcher)
+  # tmpDb.close()
+  # db.stream.close()
+  # removeFile db.path
+  # moveFile(tmpPath, db.path)
+  # db.stream = newFileStream(db.path, fmReadWriteExisting)  
+  # discard db.load()
 
 
 proc delete*(db: FlatDb, id: EntryId) =
@@ -431,13 +403,14 @@ when isMainModule:
     db.keepIf(proc(x: JsonNode): bool = return x["foo"].getNum mod 2 == 0 )
     echo toSeq(db.nodes.values())[0]
     # quit()
+    db.close()
 
   block: #bug outofbound
     var db = newFlatDb("test.db", false)
     discard db.load()
     var entry = %* {"type":"message","to":"lobby","from":"sn0re","content":"asd"}
     discard db.append(entry)
-
+    db.close()
 
   block: 
       # an example of an "update"
@@ -465,10 +438,10 @@ when isMainModule:
       #   # echo db.query equal("user","sn0re") 
 
       db.flush()
+      db.close()
 
 
-
-  block:
+  block :
       var db = newFlatDb("test.db", false)
       db.drop()
 
@@ -494,7 +467,7 @@ when isMainModule:
       assert res[0]["password"].getStr == "pw1"
       assert res[1]["password"].getStr == "pw2"
       # quit()
-
+      db.close()
   block:
       var db = newFlatDb("test.db", false)
       db.drop()
@@ -521,6 +494,9 @@ when isMainModule:
       var res = db.query(not(equal("user", "sn0re")))
       echo res
       echo res[0] == db[res[0]["_id"].getStr]
+
+      db.close()
+
 
 
 
@@ -559,7 +535,10 @@ when isMainModule and defined doNotRun:
   # entryId = db.append(entry)
   # entryId = db.append(entry)
 
+  db.close()
 
 
-
-
+when isMainModule:
+  # clear up directory
+  removeFile("test.db")
+  removeFile("test.db.bak")
