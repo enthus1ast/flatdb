@@ -35,13 +35,12 @@ echo db.query equal("foo", "baa")
 echo db.queryOne equal("foo", "baz") and equal("hallo", "nim")
 echo db.query(  (equal("foo", "baz") and equal("hallo", "nim")) or lower("long", 100) )
 
-echo db.nodes
-
 # Delete by id
 db.delete idFirst
 
-echo db.nodes
+
 # Delete by matcher
+echo db.nodes
 db.delete lower("long", 400) 
 echo db.nodes
 ```
