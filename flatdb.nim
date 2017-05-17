@@ -69,7 +69,7 @@ proc newFlatDb*(path: string, inmemory: bool): FlatDb =
 
 proc genId*(): EntryId = 
   ## Mongo id compatible
-  echo "generating id..."
+  # echo "generating id..."
   return $genOid()
 
 proc append*(db: FlatDb, node: JsonNode, eid: EntryId = nil): EntryId = 
@@ -83,7 +83,7 @@ proc append*(db: FlatDb, node: JsonNode, eid: EntryId = nil): EntryId =
   elif node.hasKey("_id"):
     id = node["_id"].getStr
   else:
-    echo 84
+    # echo 84
     id = genId()
   
   if not db.inmemory:
@@ -364,7 +364,7 @@ proc delete*(db: FlatDb, matcher: proc (x: JsonNode): bool ) =
   for item in db.queryIter( matcher ):
     hit = true
     db.nodes.del(item["_id"].getStr)
-  if not db.manualFlush and hit:
+  if (not db.manualFlush) and hit:
     db.flush()
 
 
