@@ -269,6 +269,11 @@ proc higherEqual*(key: string, val: int): proc =
 proc higherEqual*(key: string, val: float): proc = 
   return proc (x: JsonNode): bool = x.getOrDefault(key).getFnum >= val
 
+
+proc contains*(key: string, val: string): proc = 
+  return proc (x: JsonNode): bool = val in x.getOrDefault(key).getStr.contains
+
+
 proc between*(key: string, fromVal:float, toVal: float): proc =
   return proc (x: JsonNode): bool = 
     let val = x.getOrDefault(key).getFnum
