@@ -195,10 +195,15 @@ iterator queryIter*(db: FlatDb, matcher: proc (x: JsonNode): bool ): JsonNode =
 iterator queryIterReverse*(db: FlatDb, matcher: proc (x: JsonNode): bool ): JsonNode = 
   queryIterImpl(db.nodes.pairsReverse)
 
-proc query*(db: FlatDb, matcher: proc (x: JsonNode): bool ): seq[JsonNode] =
-    return toSeq(db.queryIter(matcher))
 
-# proc query*(db: FlatDb, matchers: openarray[proc (x: JsonNode): bool] ): seq[JsonNode] =
+template queryImpl(direction: untyped) = 
+    return toSeq(direction(matcher))
+proc query*(db: FlatDb, matcher: proc (x: JsonNode): bool ): seq[JsonNode] =
+    queryImpl(db.queryIter)
+proc queryReverse*(db: FlatDb, matcher: proc (x: JsonNode): bool ): seq[JsonNode] =
+    queryImpl(db.queryIterReverse)
+
+# proc queryReverse*(db: FlatDb, matchers: openarray[proc (x: JsonNode): bool] ): seq[JsonNode] =
 #     return toSeq(db.queryIter(matchers))
 
 template queryOneImpl(direction: untyped) = 
@@ -331,7 +336,7 @@ proc delete*(db: FlatDb, id: EntryId) =
       db.nodes.del(id)
   if not db.manualFlush and hit:
     db.flush()
-    
+
 template deleteImpl(direction: untyped) = 
   var hit = false
   for item in direction( matcher ):
