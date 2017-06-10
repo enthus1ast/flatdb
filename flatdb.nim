@@ -407,8 +407,9 @@ proc deleteReverse*(db: FlatDb, matcher: proc (x: JsonNode): bool ) =
 # proc limit(db: var FlatDb, lmt: int): FlatDb =
 #   db.queryLimit = lmt
 #   return db
-proc limit(db: FlatDb, lmt: int): Limit =
-  return lmt
+# proc limit*(db: FlatDb, lmt: int): Limit =
+#   return lmt
+proc limit*(l: int): Limit = return l.Limit
 
 when isMainModule:
   import algorithm
@@ -590,7 +591,7 @@ when isMainModule:
       entry = %* {"user":"sn0re", "id": 4}
       discard db.append(entry)    
 
-      proc limit(l: int): Limit = return l.Limit
+      
       # echo db.query(10.Limit ,  equal("user", "sn0re"))
       # echo db.query( 2.Limit, equal("user", "sn0re") )
       # var entries = db.query( 2, equal("user", "sn0re") )
