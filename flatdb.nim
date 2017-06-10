@@ -1,12 +1,13 @@
 import json
 import streams
-import tables
+# import tables
 import hashes
 import sequtils # atm only needed for tests
 import os
 import random
 import strutils
 import oids
+import flatdbtable
 
 randomize()
 
@@ -23,7 +24,8 @@ type
   FlatDb* = ref object 
     path*: string
     stream*: FileStream
-    nodes*: OrderedTableRef[string, JsonNode]
+    # nodes*: OrderedTableRef[string, JsonNode]
+    nodes: FlatDbTable
     inmemory*: bool
     manualFlush*: bool # if this is set to true one has to manually call stream.flush() 
                        # else it gets called by every db.append()! 
@@ -51,7 +53,8 @@ proc newFlatDb*(path: string, inmemory: bool): FlatDb =
       open(path, fmWrite).close()    
     result.stream = newFileStream(path, fmReadWriteExisting)
     
-  result.nodes = newOrderedTable[string, JsonNode](rightSize(200_000))
+  # result.nodes = newOrderedTable[string, JsonNode](rightSize(200_000))
+  result.nodes = newFlatDbTable()
   result.manualFlush = false
 
 proc genId*(): EntryId = 
@@ -149,7 +152,7 @@ proc load*(db: FlatDb): bool =
         needForRewrite = true
     else:
         id = obj["_id"].getStr()
-        obj.delete("_id") # we already have the id as table key 
+        obj.delete("_id") # we already have the id as table key 
     db.nodes.add(id, obj)
   if needForRewrite:
     echo "Generated missing ids rewriting database"
