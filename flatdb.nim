@@ -8,6 +8,7 @@ import random
 import strutils
 import oids
 import flatdbtable
+export flatdbtable
 
 randomize()
 
@@ -25,7 +26,7 @@ type
     path*: string
     stream*: FileStream
     # nodes*: OrderedTableRef[string, JsonNode]
-    nodes: FlatDbTable
+    nodes*: FlatDbTable
     inmemory*: bool
     manualFlush*: bool # if this is set to true one has to manually call stream.flush() 
                        # else it gets called by every db.append()! 
