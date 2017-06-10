@@ -183,28 +183,17 @@ proc load*(db: FlatDb): bool =
 ##########################################################################
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-iterator queryIter*(db: FlatDb, matcher: proc (x: JsonNode): bool ): JsonNode = 
-  for id, entry in db.nodes.pairs():
+template queryIterImpl(direction: untyped) = 
+  for id, entry in direction():
     if matcher(entry):
       entry["_id"] = % id
       yield entry
 
-# iterator queryRevIter*(db: FlatDb, matcher: proc (x: JsonNode): bool ): JsonNode = 
-#   # start search on the end of the nodes table
-#   for id, entry in db.nodes.pairsReverse():
-#     if matcher(entry):
-#       entry["_id"] = % id
-#       yield entry
+iterator queryIter*(db: FlatDb, matcher: proc (x: JsonNode): bool ): JsonNode = 
+  queryIterImpl(db.nodes.pairs)
 
-iterator queryIter*(db: FlatDb, matchers: openarray[proc (x: JsonNode): bool] ): JsonNode = 
-  var ok = true
-  for id, entry in db.nodes.pairs():
-    for matcher in matchers:
-      ok = ok and matcher(entry)
-    if ok:
-      entry["_id"] = % id
-      yield entry
-
+iterator queryIterReverse*(db: FlatDb, matcher: proc (x: JsonNode): bool ): JsonNode = 
+  queryIterImpl(db.nodes.pairsReverse)
 
 proc query*(db: FlatDb, matcher: proc (x: JsonNode): bool ): seq[JsonNode] =
     return toSeq(db.queryIter(matcher))
@@ -212,12 +201,18 @@ proc query*(db: FlatDb, matcher: proc (x: JsonNode): bool ): seq[JsonNode] =
 # proc query*(db: FlatDb, matchers: openarray[proc (x: JsonNode): bool] ): seq[JsonNode] =
 #     return toSeq(db.queryIter(matchers))
 
-proc queryOne*(db: FlatDb, matcher: proc (x: JsonNode): bool ): JsonNode = 
-  ## just like query but returns the first match only (iteration stops after first)
-  for entry in db.queryIter(matcher):
+template queryOneImpl(direction: untyped) = 
+  for entry in direction(matcher):
     if matcher(entry):
       return entry
-  return nil
+  return nil  
+
+proc queryOne*(db: FlatDb, matcher: proc (x: JsonNode): bool ): JsonNode = 
+  ## just like query but returns the first match only (iteration stops after first)
+  queryOneImpl(db.queryIter)
+proc queryOneReverse*(db: FlatDb, matcher: proc (x: JsonNode): bool ): JsonNode = 
+  ## just like query but returns the first match only (iteration stops after first)
+  queryOneImpl(db.queryIterReverse)
 
 proc queryOne*(db: FlatDb, id: EntryId, matcher: proc (x: JsonNode): bool ): JsonNode = 
   ## returns the entry with `id` and also matching on matcher, if you have the _id, use it, its fast.
@@ -336,17 +331,22 @@ proc delete*(db: FlatDb, id: EntryId) =
       db.nodes.del(id)
   if not db.manualFlush and hit:
     db.flush()
-
-
-proc delete*(db: FlatDb, matcher: proc (x: JsonNode): bool ) =
-  ## deletes entry by matcher, respects `manualFlush`
-  ## TODO make this in the new form (withouth truncate every time)  
+    
+template deleteImpl(direction: untyped) = 
   var hit = false
-  for item in db.queryIter( matcher ):
+  for item in direction( matcher ):
     hit = true
     db.nodes.del(item["_id"].getStr)
   if (not db.manualFlush) and hit:
     db.flush()
+proc delete*(db: FlatDb, matcher: proc (x: JsonNode): bool ) =
+  ## deletes entry by matcher, respects `manualFlush`
+  ## TODO make this in the new form (withouth truncate every time)  
+  deleteImpl db.queryIter
+proc deleteReverse*(db: FlatDb, matcher: proc (x: JsonNode): bool ) =
+  ## deletes entry by matcher, respects `manualFlush`
+  ## TODO make this in the new form (withouth truncate every time)  
+  deleteImpl db.queryIterReverse    
 
 
 when isMainModule:
