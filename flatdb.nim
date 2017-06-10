@@ -185,6 +185,9 @@ proc load*(db: FlatDb): bool =
 ##########################################################################
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+
+
+# ----------------------------- Query Iterators -----------------------------------------
 template queryIterImpl(direction: untyped, limit: Limit) = 
   var founds: int = 0
   for id, entry in direction():
@@ -212,16 +215,22 @@ iterator queryIterReverse*(db: FlatDb, limit: Limit, matcher: proc (x: JsonNode)
   queryIterImpl(db.nodes.pairsReverse, limit)
 
 
+
+# ----------------------------- Query -----------------------------------------
 template queryImpl(direction: untyped, limit: Limit)  = 
   return toSeq(direction(limit, matcher))
+
 proc query*(db: FlatDb, matcher: proc (x: JsonNode): bool ): seq[JsonNode] =
   let limit = -1
   queryImpl(db.queryIter, limit)
+
 proc queryReverse*(db: FlatDb, matcher: proc (x: JsonNode): bool ): seq[JsonNode] =
   let limit = -1
   queryImpl(db.queryIterReverse, limit)
+
 proc query*(db: FlatDb, limit: Limit, matcher: proc (x: JsonNode): bool ): seq[JsonNode] =
   queryImpl(db.queryIter, limit)
+
 proc queryReverse*(db: FlatDb, limit: Limit,  matcher: proc (x: JsonNode): bool ): seq[JsonNode] =
   queryImpl(db.queryIterReverse, limit)
 
@@ -230,6 +239,7 @@ proc queryReverse*(db: FlatDb, limit: Limit,  matcher: proc (x: JsonNode): bool 
 # proc queryReverse*(db: FlatDb, matchers: openarray[proc (x: JsonNode): bool] ): seq[JsonNode] =
 #     return toSeq(db.queryIter(matchers))
 
+# ----------------------------- QueryOne -----------------------------------------
 template queryOneImpl(direction: untyped) = 
   for entry in direction(matcher):
     if matcher(entry):
@@ -262,6 +272,7 @@ proc queryOneReverse*(db: FlatDb, matcher: proc (x: JsonNode): bool ): JsonNode 
 #     return db.nodes[id]
 #   return nil
 
+
 proc exists*(db: FlatDb, matcher: proc (x: JsonNode): bool ): bool =
   ## returns true if we found at least one match
   if db.queryOne(matcher).isNil:
@@ -275,6 +286,7 @@ proc notExists*(db: FlatDb, matcher: proc (x: JsonNode): bool ): bool =
   return false
 
 
+# ----------------------------- Matcher -----------------------------------------
 proc equal*(key: string, val: string): proc = 
   return proc (x: JsonNode): bool = 
     return x.getOrDefault(key).getStr() == val
@@ -344,11 +356,6 @@ proc `not`*(p1: proc (x: JsonNode): bool): proc (x: JsonNode): bool =
 
 
 
-proc limit*(key: string, val: int): proc = 
-  ## Limits the keys in resultset
-  return proc (x: JsonNode): bool = x.getOrDefault(key).getNum < val
-
-
 proc close(db: FlatDb) = 
   db.stream.flush()
   db.stream.close()
@@ -404,6 +411,7 @@ proc limit(db: FlatDb, lmt: int): Limit =
   return lmt
 
 when isMainModule:
+  import algorithm
   ## tests
   # block:
     # var db = newFlatDb("test.db", false)
@@ -563,6 +571,7 @@ when isMainModule:
 
 
   block:
+      
       var db = newFlatDb("test.db", false)
       db.drop()
 
@@ -584,10 +593,11 @@ when isMainModule:
       proc limit(l: int): Limit = return l.Limit
       # echo db.query(10.Limit ,  equal("user", "sn0re"))
       # echo db.query( 2.Limit, equal("user", "sn0re") )
-      var entries = db.query( 2, equal("user", "sn0re") )
+      # var entries = db.query( 2, equal("user", "sn0re") )
 #      db.query equal("user", "sn0re") 
-      # assert db.query(        2.Limit, equal("user", "sn0re") ) == @[%* {"user":"sn0re", "id": 1}, %* {"user":"sn0re", "id": 2}] 
-      # assert db.queryReverse 2.Limit, equal("user", "sn0re") == @[%* {"user":"sn0re", "id": 4}, {"user":"sn0re", "id": 3}]
+      echo db.queryReverse( limit(2), equal("user", "sn0re") ).reversed()
+      # assert db.query(        2, equal("user", "sn0re") ) == @[%* {"user":"sn0re", "id": 1}, %* {"user":"sn0re", "id": 2}] 
+      # assert db.queryReverse( 2, equal("user", "sn0re") ) == @[%* {"user":"sn0re", "id": 4}, %* {"user":"sn0re", "id": 3}]
 
       db.close()
 
