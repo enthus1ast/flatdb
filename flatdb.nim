@@ -22,21 +22,24 @@ randomize()
 ##     - Update is inefficent (has to write whole database again)
 
 type 
+  Limit = int
+
   FlatDb* = ref object 
     path*: string
     stream*: FileStream
     # nodes*: OrderedTableRef[string, JsonNode]
     nodes*: FlatDbTable
     inmemory*: bool
+    queryLimit: int # TODO
     manualFlush*: bool # if this is set to true one has to manually call stream.flush() 
                        # else it gets called by every db.append()! 
                        # so set this to true if you want to append a lot of lines in bulk
                        # set this to false when finished and call db.stream.flush() once.
                        # TODO should this be db.stream.flush or db.flush??
   
-  Order* = enum
-    ASC # search value string
-    DESC
+  # Order* = enum
+  #   ASC # search value string
+  #   DESC
 
   EntryId* = string
 
@@ -45,7 +48,6 @@ type
 
 proc newFlatDb*(path: string, inmemory: bool): FlatDb = 
   # if inmemory is set to true the filesystem gets not touched at all.
-
   result = FlatDb()
   result.path = path
   result.inmemory = inmemory
@@ -183,25 +185,47 @@ proc load*(db: FlatDb): bool =
 ##########################################################################
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-template queryIterImpl(direction: untyped) = 
+template queryIterImpl(direction: untyped, limit: Limit) = 
+  var founds: int = 0
   for id, entry in direction():
     if matcher(entry):
       entry["_id"] = % id
       yield entry
+      founds.inc
+      # echo founds, "/" , limit,  founds == limit
+      if founds == limit and limit != -1:
+        break
+
 
 iterator queryIter*(db: FlatDb, matcher: proc (x: JsonNode): bool ): JsonNode = 
-  queryIterImpl(db.nodes.pairs)
+  let limit = -1 
+  queryIterImpl(db.nodes.pairs, limit)
 
 iterator queryIterReverse*(db: FlatDb, matcher: proc (x: JsonNode): bool ): JsonNode = 
-  queryIterImpl(db.nodes.pairsReverse)
+  let limit = -1 
+  queryIterImpl(db.nodes.pairsReverse, limit)
+
+iterator queryIter*(db: FlatDb, limit: Limit,  matcher: proc (x: JsonNode): bool ): JsonNode = 
+  queryIterImpl(db.nodes.pairs, limit)
+
+iterator queryIterReverse*(db: FlatDb, limit: Limit, matcher: proc (x: JsonNode): bool ): JsonNode = 
+  queryIterImpl(db.nodes.pairsReverse, limit)
 
 
-template queryImpl(direction: untyped) = 
-    return toSeq(direction(matcher))
+template queryImpl(direction: untyped, limit: Limit)  = 
+  return toSeq(direction(limit, matcher))
 proc query*(db: FlatDb, matcher: proc (x: JsonNode): bool ): seq[JsonNode] =
-    queryImpl(db.queryIter)
+  let limit = -1
+  queryImpl(db.queryIter, limit)
 proc queryReverse*(db: FlatDb, matcher: proc (x: JsonNode): bool ): seq[JsonNode] =
-    queryImpl(db.queryIterReverse)
+  let limit = -1
+  queryImpl(db.queryIterReverse, limit)
+proc query*(db: FlatDb, limit: Limit, matcher: proc (x: JsonNode): bool ): seq[JsonNode] =
+  queryImpl(db.queryIter, limit)
+proc queryReverse*(db: FlatDb, limit: Limit,  matcher: proc (x: JsonNode): bool ): seq[JsonNode] =
+  queryImpl(db.queryIterReverse, limit)
+
+
 
 # proc queryReverse*(db: FlatDb, matchers: openarray[proc (x: JsonNode): bool] ): seq[JsonNode] =
 #     return toSeq(db.queryIter(matchers))
@@ -214,18 +238,29 @@ template queryOneImpl(direction: untyped) =
 
 proc queryOne*(db: FlatDb, matcher: proc (x: JsonNode): bool ): JsonNode = 
   ## just like query but returns the first match only (iteration stops after first)
+  # let limit = 1
   queryOneImpl(db.queryIter)
 proc queryOneReverse*(db: FlatDb, matcher: proc (x: JsonNode): bool ): JsonNode = 
   ## just like query but returns the first match only (iteration stops after first)
+  # let limit = 1
   queryOneImpl(db.queryIterReverse)
 
-proc queryOne*(db: FlatDb, id: EntryId, matcher: proc (x: JsonNode): bool ): JsonNode = 
-  ## returns the entry with `id` and also matching on matcher, if you have the _id, use it, its fast.
-  if not db.nodes.hasKey(id):
-    return nil
-  if matcher(db.nodes[id]):
-    return db.nodes[id]
-  return nil
+# proc queryOne*(db: FlatDb, matcher: proc (x: JsonNode): bool ): JsonNode = 
+#   ## just like query but returns the first match only (iteration stops after first)
+#   let limit = 1
+#   queryImpl(db.queryIter)
+# proc queryOneReverse*(db: FlatDb, matcher: proc (x: JsonNode): bool ): JsonNode = 
+#   ## just like query but returns the first match only (iteration stops after first)
+#   let limit = 1
+#   queryImpl(db.queryIterReverse)
+
+# proc queryOne*(db: FlatDb, id: EntryId, matcher: proc (x: JsonNode): bool ): JsonNode = 
+#   ## returns the entry with `id` and also matching on matcher, if you have the _id, use it, its fast.
+#   if not db.nodes.hasKey(id):
+#     return nil
+#   if matcher(db.nodes[id]):
+#     return db.nodes[id]
+#   return nil
 
 proc exists*(db: FlatDb, matcher: proc (x: JsonNode): bool ): bool =
   ## returns true if we found at least one match
@@ -309,6 +344,11 @@ proc `not`*(p1: proc (x: JsonNode): bool): proc (x: JsonNode): bool =
 
 
 
+proc limit*(key: string, val: int): proc = 
+  ## Limits the keys in resultset
+  return proc (x: JsonNode): bool = x.getOrDefault(key).getNum < val
+
+
 proc close(db: FlatDb) = 
   db.stream.flush()
   db.stream.close()
@@ -353,6 +393,15 @@ proc deleteReverse*(db: FlatDb, matcher: proc (x: JsonNode): bool ) =
   ## TODO make this in the new form (withouth truncate every time)  
   deleteImpl db.queryIterReverse    
 
+
+############################
+## Setting function
+## ala: db.limit(10).query equal("foo", "baa")
+# proc limit(db: var FlatDb, lmt: int): FlatDb =
+#   db.queryLimit = lmt
+#   return db
+proc limit(db: FlatDb, lmt: int): Limit =
+  return lmt
 
 when isMainModule:
   ## tests
@@ -513,6 +562,34 @@ when isMainModule:
 
 
 
+  block:
+      var db = newFlatDb("test.db", false)
+      db.drop()
+
+      # testdata
+      var entry: JsonNode
+
+      entry = %* {"user":"sn0re", "id": 1}
+      discard db.append(entry)  
+
+      entry = %* {"user":"sn0re", "id": 2}
+      discard db.append(entry)  
+
+      entry = %* {"user":"sn0re", "id": 3}
+      discard db.append(entry)  
+
+      entry = %* {"user":"sn0re", "id": 4}
+      discard db.append(entry)    
+
+      proc limit(l: int): Limit = return l.Limit
+      # echo db.query(10.Limit ,  equal("user", "sn0re"))
+      # echo db.query( 2.Limit, equal("user", "sn0re") )
+      var entries = db.query( 2, equal("user", "sn0re") )
+#      db.query equal("user", "sn0re") 
+      # assert db.query(        2.Limit, equal("user", "sn0re") ) == @[%* {"user":"sn0re", "id": 1}, %* {"user":"sn0re", "id": 2}] 
+      # assert db.queryReverse 2.Limit, equal("user", "sn0re") == @[%* {"user":"sn0re", "id": 4}, {"user":"sn0re", "id": 3}]
+
+      db.close()
 
 
 
