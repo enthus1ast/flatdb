@@ -1,5 +1,5 @@
 ## flat db table 
-## double linked list with 'n' hashset indexes on the values
+## double linked list with table indexes on the values
 # import sets
 import lists
 import json
