@@ -264,13 +264,13 @@ proc queryOneReverse*(db: FlatDb, matcher: proc (x: JsonNode): bool ): JsonNode 
 #   let limit = 1
 #   queryImpl(db.queryIterReverse)
 
-# proc queryOne*(db: FlatDb, id: EntryId, matcher: proc (x: JsonNode): bool ): JsonNode = 
-#   ## returns the entry with `id` and also matching on matcher, if you have the _id, use it, its fast.
-#   if not db.nodes.hasKey(id):
-#     return nil
-#   if matcher(db.nodes[id]):
-#     return db.nodes[id]
-#   return nil
+proc queryOne*(db: FlatDb, id: EntryId, matcher: proc (x: JsonNode): bool ): JsonNode = 
+  ## returns the entry with `id` and also matching on matcher, if you have the _id, use it, its fast.
+  if not db.nodes.hasKey(id):
+    return nil
+  if matcher(db.nodes[id]):
+    return db.nodes[id]
+  return nil
 
 
 proc exists*(db: FlatDb, matcher: proc (x: JsonNode): bool ): bool =
