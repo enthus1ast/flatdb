@@ -24,13 +24,15 @@ randomize()
 type 
   Limit = int
 
+
+
   FlatDb* = ref object 
     path*: string
     stream*: FileStream
     # nodes*: OrderedTableRef[string, JsonNode]
     nodes*: FlatDbTable
     inmemory*: bool
-    queryLimit: int # TODO
+    # queryLimit: int # TODO
     manualFlush*: bool # if this is set to true one has to manually call stream.flush() 
                        # else it gets called by every db.append()! 
                        # so set this to true if you want to append a lot of lines in bulk
@@ -224,12 +226,13 @@ proc query*(db: FlatDb, matcher: proc (x: JsonNode): bool ): seq[JsonNode] =
   let limit = -1
   queryImpl(db.queryIter, limit)
 
+proc query*(db: FlatDb, limit: Limit, matcher: proc (x: JsonNode): bool ): seq[JsonNode] =
+  queryImpl(db.queryIter, limit)
+
+
 proc queryReverse*(db: FlatDb, matcher: proc (x: JsonNode): bool ): seq[JsonNode] =
   let limit = -1
   queryImpl(db.queryIterReverse, limit)
-
-proc query*(db: FlatDb, limit: Limit, matcher: proc (x: JsonNode): bool ): seq[JsonNode] =
-  queryImpl(db.queryIter, limit)
 
 proc queryReverse*(db: FlatDb, limit: Limit,  matcher: proc (x: JsonNode): bool ): seq[JsonNode] =
   queryImpl(db.queryIterReverse, limit)
