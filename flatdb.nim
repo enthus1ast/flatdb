@@ -202,39 +202,39 @@ template queryIterImpl(direction: untyped, limit: Limit) =
         break
 
 
-iterator queryIter*(db: FlatDb, matcher: proc (x: JsonNode): bool ): JsonNode = 
+iterator queryIter*(db: FlatDb, matcher: Matcher ): JsonNode = 
   let limit = -1 
   queryIterImpl(db.nodes.pairs, limit)
 
-iterator queryIterReverse*(db: FlatDb, matcher: proc (x: JsonNode): bool ): JsonNode = 
+iterator queryIterReverse*(db: FlatDb, matcher: Matcher ): JsonNode = 
   let limit = -1 
   queryIterImpl(db.nodes.pairsReverse, limit)
 
-iterator queryIter*(db: FlatDb, limit: Limit,  matcher: proc (x: JsonNode): bool ): JsonNode = 
+iterator queryIter*(db: FlatDb, limit: Limit,  matcher: Matcher ): JsonNode = 
   queryIterImpl(db.nodes.pairs, limit)
 
-iterator queryIterReverse*(db: FlatDb, limit: Limit, matcher: proc (x: JsonNode): bool ): JsonNode = 
+iterator queryIterReverse*(db: FlatDb, limit: Limit, matcher: Matcher ): JsonNode = 
   queryIterImpl(db.nodes.pairsReverse, limit)
 
 
 
 # ----------------------------- Query -----------------------------------------
-template queryImpl(direction: untyped, limit: Limit)  = 
+template queryImpl*(direction: untyped, limit: Limit)  = 
   return toSeq(direction(limit, matcher))
 
-proc query*(db: FlatDb, matcher: proc (x: JsonNode): bool ): seq[JsonNode] =
+proc query*(db: FlatDb, matcher: Matcher ): seq[JsonNode] =
   let limit = -1
   queryImpl(db.queryIter, limit)
 
-proc query*(db: FlatDb, limit: Limit, matcher: proc (x: JsonNode): bool ): seq[JsonNode] =
+proc query*(db: FlatDb, limit: Limit, matcher: Matcher ): seq[JsonNode] =
   queryImpl(db.queryIter, limit)
 
 
-proc queryReverse*(db: FlatDb, matcher: proc (x: JsonNode): bool ): seq[JsonNode] =
+proc queryReverse*(db: FlatDb, matcher: Matcher ): seq[JsonNode] =
   let limit = -1
   queryImpl(db.queryIterReverse, limit)
 
-proc queryReverse*(db: FlatDb, limit: Limit,  matcher: proc (x: JsonNode): bool ): seq[JsonNode] =
+proc queryReverse*(db: FlatDb, limit: Limit,  matcher: Matcher ): seq[JsonNode] =
   queryImpl(db.queryIterReverse, limit)
 
 
@@ -249,25 +249,25 @@ template queryOneImpl(direction: untyped) =
       return entry
   return nil  
 
-proc queryOne*(db: FlatDb, matcher: proc (x: JsonNode): bool ): JsonNode = 
+proc queryOne*(db: FlatDb, matcher: Matcher ): JsonNode = 
   ## just like query but returns the first match only (iteration stops after first)
   # let limit = 1
   queryOneImpl(db.queryIter)
-proc queryOneReverse*(db: FlatDb, matcher: proc (x: JsonNode): bool ): JsonNode = 
+proc queryOneReverse*(db: FlatDb, matcher: Matcher ): JsonNode = 
   ## just like query but returns the first match only (iteration stops after first)
   # let limit = 1
   queryOneImpl(db.queryIterReverse)
 
-# proc queryOne*(db: FlatDb, matcher: proc (x: JsonNode): bool ): JsonNode = 
+# proc queryOne*(db: FlatDb, matcher: Matcher ): JsonNode = 
 #   ## just like query but returns the first match only (iteration stops after first)
 #   let limit = 1
 #   queryImpl(db.queryIter)
-# proc queryOneReverse*(db: FlatDb, matcher: proc (x: JsonNode): bool ): JsonNode = 
+# proc queryOneReverse*(db: FlatDb, matcher: Matcher ): JsonNode = 
 #   ## just like query but returns the first match only (iteration stops after first)
 #   let limit = 1
 #   queryImpl(db.queryIterReverse)
 
-proc queryOne*(db: FlatDb, id: EntryId, matcher: proc (x: JsonNode): bool ): JsonNode = 
+proc queryOne*(db: FlatDb, id: EntryId, matcher: Matcher ): JsonNode = 
   ## returns the entry with `id` and also matching on matcher, if you have the _id, use it, its fast.
   if not db.nodes.hasKey(id):
     return nil
@@ -276,20 +276,26 @@ proc queryOne*(db: FlatDb, id: EntryId, matcher: proc (x: JsonNode): bool ): Jso
   return nil
 
 
-proc exists*(db: FlatDb, matcher: proc (x: JsonNode): bool ): bool =
+proc exists*(db: FlatDb, matcher: Matcher ): bool =
   ## returns true if we found at least one match
   if db.queryOne(matcher).isNil:
     return false
   return true
 
-proc notExists*(db: FlatDb, matcher: proc (x: JsonNode): bool ): bool =
+proc notExists*(db: FlatDb, matcher: Matcher ): bool =
   ## returns false if we found no match
   if db.queryOne(matcher).isNil:
     return true
   return false
 
 
+
 # ----------------------------- Matcher -----------------------------------------
+
+# template newMatcher(func: Matcher)
+#   # return proc (x: JsonNode): bool = 
+#     # func()  
+
 proc equal*(key: string, val: string): proc = 
   return proc (x: JsonNode): bool = 
     return x.getOrDefault(key).getStr() == val
@@ -394,11 +400,11 @@ template deleteImpl(direction: untyped) =
     db.nodes.del(item["_id"].getStr)
   if (not db.manualFlush) and hit:
     db.flush()
-proc delete*(db: FlatDb, matcher: proc (x: JsonNode): bool ) =
+proc delete*(db: FlatDb, matcher: Matcher ) =
   ## deletes entry by matcher, respects `manualFlush`
   ## TODO make this in the new form (withouth truncate every time)  
   deleteImpl db.queryIter
-proc deleteReverse*(db: FlatDb, matcher: proc (x: JsonNode): bool ) =
+proc deleteReverse*(db: FlatDb, matcher: Matcher ) =
   ## deletes entry by matcher, respects `manualFlush`
   ## TODO make this in the new form (withouth truncate every time)  
   deleteImpl db.queryIterReverse    
