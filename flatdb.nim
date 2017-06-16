@@ -33,11 +33,11 @@ type
     nodes*: FlatDbTable
     inmemory*: bool
     # queryLimit: int # TODO
-    manualFlush*: bool # if this is set to true one has to manually call stream.flush() 
-                       # else it gets called by every db.append()! 
-                       # so set this to true if you want to append a lot of lines in bulk
-                       # set this to false when finished and call db.stream.flush() once.
-                       # TODO should this be db.stream.flush or db.flush??
+    manualFlush*: bool ## if this is set to true one has to manually call stream.flush() 
+                       ## else it gets called by every db.append()! 
+                       ## so set this to true if you want to append a lot of lines in bulk
+                       ## set this to false when finished and call db.stream.flush() once.
+                       ## TODO should this be db.stream.flush or db.flush??
   
   # Order* = enum
   #   ASC # search value string
@@ -47,6 +47,29 @@ type
 
   Matcher* = proc (x: JsonNode): bool 
 
+  # QuerySettingsTypes* = enum
+  #   limit, skip
+
+  QuerySettings* = ref object
+    limit*: int # end query if the result set has this amounth of entries
+    skip*: int # skip the first n entries 
+
+
+proc nlimit(qsetting = QuerySettings(), cnt: int): QuerySettings =
+  result = qsetting
+  result.limit = cnt
+  # nlimit(10).skip(50)
+proc nskip(qsetting = QuerySettings(), cnt: int): QuerySettings =
+  result = qsetting
+  result.skip = cnt
+
+
+proc qs(): QuerySettings =
+  result = QuerySettings()
+
+
+#echo repr (qs().nlimit(10).nskip(50))
+#quit()
 
 proc newFlatDb*(path: string, inmemory: bool): FlatDb = 
   # if inmemory is set to true the filesystem gets not touched at all.
@@ -164,30 +187,6 @@ proc load*(db: FlatDb): bool =
     db.flush()
   return true
 
-#### Reverse pair##########################################
-# Copied from tables.nim
-# template forAllOrderedPairs(yieldStmt: untyped): typed {.dirty.} =
-#   var h = t.first
-#   while h >= 0:
-#     var nxt = t.data[h].next
-#     if isFilled(t.data[h].hcode): yieldStmt
-#     h = nxt
-
-# iterator pairsReverse*[A, B](t: OrderedTable[A, B]): (A, B) =
-#   ## iterates over any (key, value) pair in the table `t` in insertion
-#   ## order.
-#   forAllOrderedPairs:
-#     yield (t.data[h].key, t.data[h].val)
-
-
-# iterator pairsReverse*[A, B](t: Table[A, B]): (A, B) =
-#   ## iterates over any (key, value) pair in the table `t`.
-#   for h in high(t.data)..0:
-#     if isFilled(t.data[h].hcode): yield (t.data[h].key, t.data[h].val)
-##########################################################################
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-
 
 # ----------------------------- Query Iterators -----------------------------------------
 template queryIterImpl(direction: untyped, limit: Limit) = 
@@ -238,10 +237,6 @@ proc queryReverse*(db: FlatDb, limit: Limit,  matcher: Matcher ): seq[JsonNode] 
   queryImpl(db.queryIterReverse, limit)
 
 
-
-# proc queryReverse*(db: FlatDb, matchers: openarray[proc (x: JsonNode): bool] ): seq[JsonNode] =
-#     return toSeq(db.queryIter(matchers))
-
 # ----------------------------- QueryOne -----------------------------------------
 template queryOneImpl(direction: untyped) = 
   for entry in direction(matcher):
@@ -291,10 +286,6 @@ proc notExists*(db: FlatDb, matcher: Matcher ): bool =
 
 
 # ----------------------------- Matcher -----------------------------------------
-
-# template newMatcher(func: Matcher)
-#   # return proc (x: JsonNode): bool = 
-#     # func()  
 
 proc equal*(key: string, val: string): proc = 
   return proc (x: JsonNode): bool = 
@@ -372,16 +363,8 @@ proc close(db: FlatDb) =
 proc keepIf*(db: FlatDb, matcher: proc) = 
   ## filters the database file, only lines that match `matcher`
   ## will be in the new file.
+  # TODO 
   db.store db.query matcher
-  # let tmpPath = db.path & ".tmp"
-  # var tmpDb = newFlatDb(tmpPath, false)
-  # tmpDb.store db.query(matcher)
-  # tmpDb.close()
-  # db.stream.close()
-  # removeFile db.path
-  # moveFile(tmpPath, db.path)
-  # db.stream = newFileStream(db.path, fmReadWriteExisting)  
-  # discard db.load()
 
 
 proc delete*(db: FlatDb, id: EntryId) =
@@ -418,7 +401,7 @@ proc deleteReverse*(db: FlatDb, matcher: Matcher ) =
 #   return db
 # proc limit*(db: FlatDb, lmt: int): Limit =
 #   return lmt
-proc limit*(l: int): Limit = return l.Limit
+proc limit*(lim: int): Limit = return lim.Limit
 
 when isMainModule:
   import algorithm
@@ -604,7 +587,7 @@ when isMainModule:
       # echo db.query(10.Limit ,  equal("user", "sn0re"))
       # echo db.query( 2.Limit, equal("user", "sn0re") )
       # var entries = db.query( 2, equal("user", "sn0re") )
-#      db.query equal("user", "sn0re") 
+      # db.query equal("user", "sn0re") 
       echo db.queryReverse( limit(2), equal("user", "sn0re") ).reversed()
       # assert db.query(        2, equal("user", "sn0re") ) == @[%* {"user":"sn0re", "id": 1}, %* {"user":"sn0re", "id": 2}] 
       # assert db.queryReverse( 2, equal("user", "sn0re") ) == @[%* {"user":"sn0re", "id": 4}, %* {"user":"sn0re", "id": 3}]
