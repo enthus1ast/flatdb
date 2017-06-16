@@ -53,12 +53,14 @@ type
 
 
 # Query Settings ---------------------------------------------------------------------
-proc nlimit*(qsetting = QuerySettings(), cnt: int): QuerySettings =
-  result = qsetting
+proc lim*(settings = QuerySettings(), cnt: int): QuerySettings =
+  ## limit the smounth of matches
+  result = settings
   result.limit = cnt
   # nlimit(10).skip(50)
-proc nskip*(qsetting = QuerySettings(), cnt: int): QuerySettings =
-  result = qsetting
+proc skp*(settings = QuerySettings(), cnt: int): QuerySettings =
+  ## skips amounth of matches
+  result = settings
   result.skip = cnt
 
 proc newQuerySettings*(): QuerySettings =
@@ -77,7 +79,7 @@ proc qs*(): QuerySettings =
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
-proc newFlatDb*(path: string, inmemory: bool): FlatDb = 
+proc newFlatDb*(path: string, inmemory: bool = false): FlatDb = 
   # if inmemory is set to true the filesystem gets not touched at all.
   result = FlatDb()
   result.path = path
@@ -193,54 +195,64 @@ proc load*(db: FlatDb): bool =
     db.flush()
   return true
 
+proc len*(db: FlatDb): int = 
+  return db.nodes.len()
+
+proc getNode*(db: FlatDb, key: EntryId): Node =
+  return db.nodes.getNode($key)
 
 # ----------------------------- Query Iterators -----------------------------------------
-template queryIterImpl(direction: untyped, limit: Limit) = 
+template queryIterImpl(direction: untyped, settings: QuerySettings) = 
   var founds: int = 0
+  var skipped: int = 0
   for id, entry in direction():
     if matcher(entry):
+      if settings.skip != -1 and skipped < settings.skip:
+        skipped.inc
+        continue
+      if founds == settings.limit and settings.limit != -1:
+        break
+      else:
+        founds.inc
       entry["_id"] = % id
       yield entry
-      founds.inc
       # echo founds, "/" , limit,  founds == limit
-      if founds == limit and limit != -1:
-        break
 
 
 iterator queryIter*(db: FlatDb, matcher: Matcher ): JsonNode = 
-  let limit = -1 
-  queryIterImpl(db.nodes.pairs, limit)
+  let settings = newQuerySettings()
+  queryIterImpl(db.nodes.pairs, settings)
 
 iterator queryIterReverse*(db: FlatDb, matcher: Matcher ): JsonNode = 
-  let limit = -1 
-  queryIterImpl(db.nodes.pairsReverse, limit)
+  let settings = newQuerySettings()
+  queryIterImpl(db.nodes.pairsReverse, settings)
 
-iterator queryIter*(db: FlatDb, limit: Limit,  matcher: Matcher ): JsonNode = 
-  queryIterImpl(db.nodes.pairs, limit)
+iterator queryIter*(db: FlatDb, settings: QuerySettings,  matcher: Matcher ): JsonNode = 
+  queryIterImpl(db.nodes.pairs, settings)
 
-iterator queryIterReverse*(db: FlatDb, limit: Limit, matcher: Matcher ): JsonNode = 
-  queryIterImpl(db.nodes.pairsReverse, limit)
+iterator queryIterReverse*(db: FlatDb, settings: QuerySettings, matcher: Matcher ): JsonNode = 
+  queryIterImpl(db.nodes.pairsReverse, settings)
 
 
 
 # ----------------------------- Query -----------------------------------------
-template queryImpl*(direction: untyped, limit: Limit)  = 
-  return toSeq(direction(limit, matcher))
+template queryImpl*(direction: untyped, settings: QuerySettings)  = 
+  return toSeq(direction(settings, matcher))
 
 proc query*(db: FlatDb, matcher: Matcher ): seq[JsonNode] =
-  let limit = -1
-  queryImpl(db.queryIter, limit)
+  let settings = newQuerySettings()
+  queryImpl(db.queryIter, settings)
 
-proc query*(db: FlatDb, limit: Limit, matcher: Matcher ): seq[JsonNode] =
-  queryImpl(db.queryIter, limit)
+proc query*(db: FlatDb, settings: QuerySettings, matcher: Matcher ): seq[JsonNode] =
+  queryImpl(db.queryIter, settings)
 
 
 proc queryReverse*(db: FlatDb, matcher: Matcher ): seq[JsonNode] =
-  let limit = -1
-  queryImpl(db.queryIterReverse, limit)
+  let settings = newQuerySettings()
+  queryImpl(db.queryIterReverse, settings)
 
-proc queryReverse*(db: FlatDb, limit: Limit,  matcher: Matcher ): seq[JsonNode] =
-  queryImpl(db.queryIterReverse, limit)
+proc queryReverse*(db: FlatDb, settings: QuerySettings,  matcher: Matcher ): seq[JsonNode] =
+  queryImpl(db.queryIterReverse, settings)
 
 
 # ----------------------------- QueryOne -----------------------------------------
@@ -362,7 +374,7 @@ proc `not`*(p1: proc (x: JsonNode): bool): proc (x: JsonNode): bool =
 
 
 
-proc close(db: FlatDb) = 
+proc close*(db: FlatDb) = 
   db.stream.flush()
   db.stream.close()
 
@@ -407,7 +419,7 @@ proc deleteReverse*(db: FlatDb, matcher: Matcher ) =
 #   return db
 # proc limit*(db: FlatDb, lmt: int): Limit =
 #   return lmt
-proc limit*(lim: int): Limit = return lim.Limit
+# proc limit*(lim: int): Limit = return lim.Limit
 
 when isMainModule:
   import algorithm
@@ -594,7 +606,12 @@ when isMainModule:
       # echo db.query( 2.Limit, equal("user", "sn0re") )
       # var entries = db.query( 2, equal("user", "sn0re") )
       # db.query equal("user", "sn0re") 
-      echo db.queryReverse( limit(2), equal("user", "sn0re") ).reversed()
+      # echo db.queryReverse( qs().limit(2) , equal("user", "sn0re") ) #.reversed()
+      # var ss = 
+      # echo (newQuerySettings().nlimit(10))
+      echo "######"
+      echo db.queryReverse( qs().lim(2), equal("user", "sn0re") ).reversed()
+      echo "^^^^^^"
       # assert db.query(        2, equal("user", "sn0re") ) == @[%* {"user":"sn0re", "id": 1}, %* {"user":"sn0re", "id": 2}] 
       # assert db.queryReverse( 2, equal("user", "sn0re") ) == @[%* {"user":"sn0re", "id": 4}, %* {"user":"sn0re", "id": 3}]
 

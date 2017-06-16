@@ -10,9 +10,10 @@ type
   # FlatDbTableNode = object of DoublyLinkedNode
   #   key*: string
 
+  Node* = DoublyLinkedNode[Entry]
   Entry = tuple[key:string, value: JsonNode]
   FlatDbTableData = DoublyLinkedList[Entry]
-  FlatDbTableIndex = Table[string, DoublyLinkedNode[Entry]]
+  FlatDbTableIndex = Table[string, Node]
   FlatDbTableId = string
 
   FlatDbTable* = ref object
@@ -26,7 +27,7 @@ proc newFlatDbTable*(): FlatDbTable =
   result.size = 0
 
   # result.index = FlatDbTableIndex()
-  result.index = initTable[string, DoublyLinkedNode[Entry]]()
+  result.index = initTable[string, Node]()
 
 # proc insert*(table: FlatDbTable, pos: idx, key: string, value: JsonNode) = 
 #   table.data.insert()
@@ -42,6 +43,11 @@ proc `[]`*(table: FlatDbTable, key: string): JsonNode =
 proc `[]=`(table: FlatDbTable, key: string, value: JsonNode) =
    table.index[key].value.value = value
 
+proc getNode*(table: FlatDbTable, key: string): Node =
+  ## retrieves the `Node` by id
+  ## this is the doubly linked list entry, which exposes next and prev!
+  return table.index[key]
+  
 proc hasKey*(table: FlatDbTable, key: string): bool =
   ## returns true if table has a items with key == key
   return table.index.hasKey(key)
