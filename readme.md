@@ -30,10 +30,25 @@ echo db[idFirst].getOrDefault("foo").getStr()
 
 
 # query the db, this for now touches every item in the db
-# and find the match for you.
+# and find the match for you. (beginning from the top/the oldest item)
 echo db.query equal("foo", "baa") 
 echo db.queryOne equal("foo", "baz") and equal("hallo", "nim")
 echo db.query(  (equal("foo", "baz") and equal("hallo", "nim")) or lower("long", 100) )
+
+
+# you decide if it makes more sense for you to start the 
+# query at the end of the table (at the oldest item); use the *Reverse procs.
+echo db.queryReverse equal("foo", "baa") 
+echo db.queryReverse(  (equal("foo", "baz") and equal("hallo", "nim")) or lower("long", 100) )
+
+
+# if you use one of the *Reverse procs, the result set is reversed as well. 
+# So to get the items in their natural order (flatdb preserves insertion order)
+# one has to utilize the `reversed` proc from `algorithm` module.
+import algorithm
+echo (db.queryReverse equal("foo", "baa")).reverse()
+
+
 
 # Delete by id
 db.delete idFirst
