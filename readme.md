@@ -49,13 +49,21 @@ import algorithm
 echo (db.queryReverse equal("foo", "baa")).reverse()
 
 
-
 # Delete by id
 db.delete idFirst
-
 
 # Delete by matcher
 echo db.nodes
 db.delete lower("long", 400) 
 echo db.nodes
+
+# Kinda "transaction"
+# if you know there is alot to write, disable the autoflush temporarily.
+# Flatdb will then not reflect changes to the filesystem until db.flush() is called manually.
+db.autoflush = false
+for each in 0..100:
+  db.append({"foo": % each})
+db.autoflush = true
+db.flush()
 ```
+

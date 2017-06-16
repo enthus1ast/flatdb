@@ -47,29 +47,35 @@ type
 
   Matcher* = proc (x: JsonNode): bool 
 
-  # QuerySettingsTypes* = enum
-  #   limit, skip
-
   QuerySettings* = ref object
     limit*: int # end query if the result set has this amounth of entries
     skip*: int # skip the first n entries 
 
 
-proc nlimit(qsetting = QuerySettings(), cnt: int): QuerySettings =
+# Query Settings ---------------------------------------------------------------------
+proc nlimit*(qsetting = QuerySettings(), cnt: int): QuerySettings =
   result = qsetting
   result.limit = cnt
   # nlimit(10).skip(50)
-proc nskip(qsetting = QuerySettings(), cnt: int): QuerySettings =
+proc nskip*(qsetting = QuerySettings(), cnt: int): QuerySettings =
   result = qsetting
   result.skip = cnt
 
-
-proc qs(): QuerySettings =
+proc newQuerySettings*(): QuerySettings =
+  ## Configure the queries, skip, limit found elements ..
   result = QuerySettings()
+  result.skip = -1
+  result.limit = -1
 
+proc qs*(): QuerySettings =
+  ## Shortcut for newQuerySettings
+  result = newQuerySettings()
 
-#echo repr (qs().nlimit(10).nskip(50))
-#quit()
+# echo repr (qs().nlimit(10).nskip(50))
+# db.query qs().limit(10).skip(50), equal("foo","baa") and higher("foo", 10)
+# quit()
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 
 proc newFlatDb*(path: string, inmemory: bool): FlatDb = 
   # if inmemory is set to true the filesystem gets not touched at all.
