@@ -6,6 +6,18 @@ a small flatfile, inprocess database for nim-lang
 warning this is in development right now, expect some quirks (or even data losses)
 
 
+what
+=====
+
+- holds your data in memory with a table + doubly linked list, to provide 
+	- fast hash acces with keys
+	- insertion order ( iterate in both directions )
+
+- persists the data to a `jsonl` (json line by line) file.
+
+
+Be aware that if you change an entry in memory, you have to call "db.flush" manually!
+
 
 usage
 =====
@@ -64,6 +76,12 @@ db.autoflush = false
 for each in 0..100:
   db.append({"foo": % each})
 db.autoflush = true
+db.flush()
+
+
+# Update a bunch of entries example
+for entry in db.query( qs().lmt(10).skp(5), equal("room", "lobby") and equal("topic", "") ):
+  entry["topic"] = % "DEBUG TOPIC!"
 db.flush()
 ```
 
