@@ -79,6 +79,18 @@ db.autoflush = true
 db.flush()
 
 
+# Query settings
+# use `newQuerySettings` or the `qs()` alias to create "QuerySettings", where you could
+# - limit the the result set with `lmt(n)` or   
+# - skip over matches with `skp(n)`
+# this example skips over the first 5 matches and limits the result set to 10 items.
+echo db.query(qs().skp(5).lmt(10) , higher("someKey", 10) and equal("room", "lobby") )
+
+
+# Queries the db from oldest to newest so:
+# this eample skips over the first 5 matches _from behind_ and limits the result set to 10 items.
+echo db.queryReverse(qs().skp(5).lmt(10) , higher("someKey", 10) and equal("room", "lobby") )
+
 # Update a bunch of entries example
 for entry in db.query( qs().lmt(10).skp(5), equal("room", "lobby") and equal("topic", "") ):
   entry["topic"] = % "DEBUG TOPIC!"
