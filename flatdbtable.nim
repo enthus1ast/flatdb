@@ -1,3 +1,11 @@
+#
+#
+#                     flatdb
+#        (c) Copyright 2017 David Krause
+#
+#    See the file "licence", included in this
+#    distribution, for details about the copyright.
+
 ## flat db table 
 ## double linked list with table indexes on the values
 # import sets
