@@ -14,7 +14,7 @@ what
 	- insertion order ( iterate in both directions )
 
 - persists the data to a `jsonl` (json line by line) file.
-- let you query the database (beginning at the top/first item  or the back/the last item)
+- let you query the database (beginning at the top|first|oldest item  or the back|last|newest item)
   - a query has to touch all entries in the db (it does this all in memory), 
     but matcher procedures gets summarized, so its cheap to concat multiple matchers with `and` or `or`
 
