@@ -14,6 +14,9 @@ what
 	- insertion order ( iterate in both directions )
 
 - persists the data to a `jsonl` (json line by line) file.
+- let you query the database (beginning at the top/first item  or the back/the last item)
+  - a query has to touch all entries in the db (it does this all in memory), 
+    but matcher procedures gets summarized, so its cheap to concat multiple matchers with `and` or `or`
 
 
 Be aware that if you change an entry in memory, you have to call "db.flush" manually!
