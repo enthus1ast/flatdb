@@ -8,15 +8,12 @@
 
 ## flat db table 
 ## double linked list with table indexes on the values
-# import sets
 import lists
 import json
 import tables
 import oids
 
 type 
-  # FlatDbTableNode = object of DoublyLinkedNode
-  #   key*: string
 
   Node* = DoublyLinkedNode[Entry]
   Entry = tuple[key:string, value: JsonNode]
@@ -34,7 +31,6 @@ proc newFlatDbTable*(): FlatDbTable =
   result.data = initDoublyLinkedList[Entry]()
   result.size = 0
 
-  # result.index = FlatDbTableIndex()
   result.index = initTable[string, Node]()
 
 # proc insert*(table: FlatDbTable, pos: idx, key: string, value: JsonNode) = 
@@ -60,8 +56,6 @@ proc hasKey*(table: FlatDbTable, key: string): bool =
   ## returns true if table has a items with key == key
   return table.index.hasKey(key)
 
-# template getOrDefault(table, key): JsonNode = 
-#   table.index.getOrDefault(key)
 
 proc del*(table: FlatDbTable, key: string) =
   var it = table.index[key]

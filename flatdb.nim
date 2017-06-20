@@ -8,9 +8,8 @@
 
 import json
 import streams
-# import tables
 import hashes
-import sequtils # atm only needed for tests
+import sequtils
 import os
 import random
 import strutils
@@ -18,7 +17,7 @@ import oids
 import flatdbtable
 export flatdbtable
 
-randomize()
+randomize() # TODO call this at Main?
 
 
 ## this is the custom build 'database' for nimCh4t 
@@ -27,7 +26,7 @@ randomize()
 
 ## This database is designed like:
 ##  - Mostly append only (append only is fast)
-##     - Update is inefficent (has to write whole database again)
+##  - Update is inefficent (has to write whole database again)
 
 type 
   Limit = int
@@ -46,10 +45,6 @@ type
                        ## so set this to true if you want to append a lot of lines in bulk
                        ## set this to false when finished and call db.stream.flush() once.
                        ## TODO should this be db.stream.flush or db.flush??
-  
-  # Order* = enum
-  #   ASC # search value string
-  #   DESC
 
   EntryId* = string
 
@@ -80,10 +75,6 @@ proc newQuerySettings*(): QuerySettings =
 proc qs*(): QuerySettings =
   ## Shortcut for newQuerySettings
   result = newQuerySettings()
-
-# echo repr (qs().nlimit(10).nskip(50))
-# db.query qs().limit(10).skip(50), equal("foo","baa") and higher("foo", 10)
-# quit()
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
@@ -97,19 +88,16 @@ proc newFlatDb*(path: string, inmemory: bool = false): FlatDb =
       open(path, fmWrite).close()    
     result.stream = newFileStream(path, fmReadWriteExisting)
     
-  # result.nodes = newOrderedTable[string, JsonNode](rightSize(200_000))
   result.nodes = newFlatDbTable()
   result.manualFlush = false
 
 proc genId*(): EntryId = 
   ## Mongo id compatible
-  # echo "generating id..."
   return $genOid()
 
 proc append*(db: FlatDb, node: JsonNode, eid: EntryId = nil): EntryId = 
   ## appends a json node to the opened database file (line by line)
   ## even if the file already exists!
-  ## if the 
   var id: EntryId
   
   if not eid.isNil:
@@ -117,11 +105,9 @@ proc append*(db: FlatDb, node: JsonNode, eid: EntryId = nil): EntryId =
   elif node.hasKey("_id"):
     id = node["_id"].getStr
   else:
-    # echo 84
     id = genId()
   
   if not db.inmemory:
-    # var nodeAndId = node 
     if not node.hasKey("_id"):
       node["_id"] = %* id
     db.stream.writeLine($node)
@@ -160,7 +146,6 @@ proc store*(db: FlatDb, nodes: seq[JsonNode]) =
   db.backup()
   db.drop()
   db.manualFlush = true
-  # echo db.nodes
   for node in nodes:
     discard db.append(node)
   db.stream.flush()
@@ -224,8 +209,6 @@ template queryIterImpl(direction: untyped, settings: QuerySettings) =
         founds.inc
       entry["_id"] = % id
       yield entry
-      # echo founds, "/" , limit,  founds == limit
-
 
 iterator queryIter*(db: FlatDb, matcher: Matcher ): JsonNode = 
   let settings = newQuerySettings()
@@ -240,7 +223,6 @@ iterator queryIter*(db: FlatDb, settings: QuerySettings,  matcher: Matcher ): Js
 
 iterator queryIterReverse*(db: FlatDb, settings: QuerySettings, matcher: Matcher ): JsonNode = 
   queryIterImpl(db.nodes.pairsReverse, settings)
-
 
 
 # ----------------------------- Query -----------------------------------------
@@ -272,21 +254,11 @@ template queryOneImpl(direction: untyped) =
 
 proc queryOne*(db: FlatDb, matcher: Matcher ): JsonNode = 
   ## just like query but returns the first match only (iteration stops after first)
-  # let limit = 1
   queryOneImpl(db.queryIter)
 proc queryOneReverse*(db: FlatDb, matcher: Matcher ): JsonNode = 
   ## just like query but returns the first match only (iteration stops after first)
-  # let limit = 1
   queryOneImpl(db.queryIterReverse)
 
-# proc queryOne*(db: FlatDb, matcher: Matcher ): JsonNode = 
-#   ## just like query but returns the first match only (iteration stops after first)
-#   let limit = 1
-#   queryImpl(db.queryIter)
-# proc queryOneReverse*(db: FlatDb, matcher: Matcher ): JsonNode = 
-#   ## just like query but returns the first match only (iteration stops after first)
-#   let limit = 1
-#   queryImpl(db.queryIterReverse)
 
 proc queryOne*(db: FlatDb, id: EntryId, matcher: Matcher ): JsonNode = 
   ## returns the entry with `id` and also matching on matcher, if you have the _id, use it, its fast.
@@ -381,7 +353,6 @@ proc `not`*(p1: proc (x: JsonNode): bool): proc (x: JsonNode): bool =
   return proc (x: JsonNode): bool = return not p1(x)
 
 
-
 proc close*(db: FlatDb) = 
   db.stream.flush()
   db.stream.close()
@@ -417,17 +388,6 @@ proc deleteReverse*(db: FlatDb, matcher: Matcher ) =
   ## deletes entry by matcher, respects `manualFlush`
   ## TODO make this in the new form (withouth truncate every time)  
   deleteImpl db.queryIterReverse    
-
-
-############################
-## Setting function
-## ala: db.limit(10).query equal("foo", "baa")
-# proc limit(db: var FlatDb, lmt: int): FlatDb =
-#   db.queryLimit = lmt
-#   return db
-# proc limit*(db: FlatDb, lmt: int): Limit =
-#   return lmt
-# proc limit*(lim: int): Limit = return lim.Limit
 
 when isMainModule:
   import algorithm
@@ -487,7 +447,6 @@ when isMainModule:
       discard db.append(entry)
     db.close()
 
-    # db.truncate(matcher: x["foo"].getNum mod 2 == 0 )
     db.keepIf(proc(x: JsonNode): bool = return x["foo"].getNum mod 2 == 0 )
     echo toSeq(db.nodes.values())[0]
     db.keepIf(proc(x: JsonNode): bool = return x["foo"].getNum mod 2 == 0 )
@@ -518,14 +477,6 @@ when isMainModule:
       # The actual update
       db.nodes[id]["password"] = % "123"
       # echo db.nodes
-
-      #### Now a matcher example
-      # timeIt "haha":
-      #   echo db.query equal("user","sn0re") 
-      #   echo db.query equal("user","sn0re") 
-      #   echo db.query equal("user","sn0re") 
-      #   echo db.query equal("user","sn0re") 
-      #   # echo db.query equal("user","sn0re") 
 
       db.flush()
       db.close()
