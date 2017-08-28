@@ -10,12 +10,19 @@ import json
 import streams
 import hashes
 import sequtils
-import os
 import random
 import strutils
-import oids
 import flatdbtable
 export flatdbtable
+
+when not defined (js):
+  import os
+  import oids
+else:
+  import jshelper
+  import jsffi
+  # from dom import window
+
 
 randomize() # TODO call this at Main?
 
@@ -31,11 +38,10 @@ randomize() # TODO call this at Main?
 type 
   Limit = int
 
-
-
   FlatDb* = ref object 
     path*: string
-    stream*: FileStream
+    when not defined (js):
+      stream*: FileStream
     # nodes*: OrderedTableRef[string, JsonNode]
     nodes*: FlatDbTable
     inmemory*: bool
@@ -83,11 +89,14 @@ proc newFlatDb*(path: string, inmemory: bool = false): FlatDb =
   result = FlatDb()
   result.path = path
   result.inmemory = inmemory
-  if not inmemory:
-    if not fileExists(path):
-      open(path, fmWrite).close()    
-    result.stream = newFileStream(path, fmReadWriteExisting)
-    
+  when not defined (js):
+    if not inmemory:
+      if not fileExists(path):
+        open(path, fmWrite).close()    
+      result.stream = newFileStream(path, fmReadWriteExisting)
+  else:
+    # result.inmemory = true
+    discard
   result.nodes = newFlatDbTable()
   result.manualFlush = false
 
@@ -95,25 +104,38 @@ proc genId*(): EntryId =
   ## Mongo id compatible
   return $genOid()
 
-proc append*(db: FlatDb, node: JsonNode, eid: EntryId = nil): EntryId = 
+# proc append*(db: FlatDb, node: JObject, eid: EntryId = nil): EntryId {.exportc.} = 
+#   # db.append cast[JsonNode](node)
+
+proc append*(db: FlatDb, node: JsonNode, eid: EntryId = nil): EntryId {.exportc.} = 
   ## appends a json node to the opened database file (line by line)
   ## even if the file already exists!
   var id: EntryId
   
-  if not eid.isNil:
+  if not eid.isNil or not eid.len == 0:
     id = eid
   elif node.hasKey("_id"):
     id = node["_id"].getStr
   else:
     id = genId()
   
-  if not db.inmemory:
-    if not node.hasKey("_id"):
-      node["_id"] = %* id
-    db.stream.writeLine($node)
-  if not db.manualFlush:
-    db.stream.flush()
+  
+  if not node.hasKey("_id"):
+    node["_id"] = %* id
 
+  if not db.inmemory:
+    when not defined(js):
+      db.stream.writeLine($node)
+    else:
+      jsAppend(db.path, ($node).cstring)
+  
+  if not db.manualFlush:
+    when not defined(js):
+      db.stream.flush()
+
+
+  echo node
+  # return
   node.delete("_id") # we dont need the key in memory twice
   db.nodes.add(id, node) 
   return id
@@ -126,17 +148,32 @@ proc backup*(db: FlatDb) =
   ## Creates a backup of the original db.
   ## We do this to avoid haveing the data only in memory.
   let backupPath = db.path & ".bak"
-  removeFile(backupPath) # delete old backup
-  copyFile(db.path, backupPath) # copy current db to backup path
+  when not defined(js):
+    removeFile(backupPath) # delete old backup
+    copyFile(db.path, backupPath) # copy current db to backup path
+  else:
+    echo "BACKUP not impletmented on js"
+    jsRemove(backupPath) # delete old backup
+    jsCopy(db.path, backupPath)
+
+
+
+
 
 
 proc drop*(db: FlatDb) = 
   ## DELETES EVERYTHING
   ## deletes the whole database.
   ## after this call we can use the database as normally
-  db.stream.close()
-  db.stream = newFileStream(db.path, fmWrite)
+  when not defined(js):
+    db.stream.close()
+    db.stream = newFileStream(db.path, fmWrite)
+  else:
+    jsRemove(db.path)
+    discard jsStore(db.path, "")
   db.nodes.clear()
+
+
 
 proc store*(db: FlatDb, nodes: seq[JsonNode]) = 
   ## write every json node to the db.
@@ -148,7 +185,10 @@ proc store*(db: FlatDb, nodes: seq[JsonNode]) =
   db.manualFlush = true
   for node in nodes:
     discard db.append(node)
-  db.stream.flush()
+  when not defined(js):
+    db.stream.flush()
+  else:
+    discard jsStore(db.path, $ %* nodes)
   db.manualFlush = false
 
 proc flush*(db: FlatDb) = 
@@ -165,28 +205,47 @@ proc flush*(db: FlatDb) =
 
 proc load*(db: FlatDb): bool = 
   ## reads the complete flat db and returns true if load sucessfully, false otherwise
-  var line: string  = ""
-  var obj: JsonNode
   var id: EntryId
   var needForRewrite: bool = false
-  db.nodes.clear()
-
-  if db.stream.isNil():
-    return false
-
-  while db.stream.readLine(line):
-    obj = parseJson(line)
-    if not obj.hasKey("_id"):
+  when defined (js):
+    # echo "LOAD not implemented on js FOR NOW"
+    var raw = $jsLoad(db.path)
+    var lines = raw.split("\n") 
+    for line in lines:
+      if line.strip().len == 0: continue
+      var j = parseJson(line)
+      echo "JJJJ ", j
+      # echo j
+      if not j.hasKey("_id"):
         id = genId()
-        needForRewrite = true
-    else:
-        id = obj["_id"].getStr()
-        obj.delete("_id") # we already have the id as table key 
-    db.nodes.add(id, obj)
-  if needForRewrite:
-    echo "Generated missing ids rewriting database"
-    db.flush()
-  return true
+        needForRewrite = true     
+      else:
+        id = j["_id"].getStr()
+        j.delete("_id") # we already have the id as table key 
+      db.nodes.add(id, j)
+    return true
+  
+  else:
+    var line: string  = ""
+    var obj: JsonNode
+    db.nodes.clear()
+
+    if db.stream.isNil():
+      return false
+
+    while db.stream.readLine(line):
+      obj = parseJson(line)
+      if not obj.hasKey("_id"):
+          id = genId()
+          needForRewrite = true
+      else:
+          id = obj["_id"].getStr()
+          obj.delete("_id") # we already have the id as table key 
+      db.nodes.add(id, obj)
+    if needForRewrite:
+      echo "Generated missing ids rewriting database"
+      db.flush()
+    return true
 
 proc len*(db: FlatDb): int = 
   return db.nodes.len()
@@ -354,8 +413,9 @@ proc `not`*(p1: proc (x: JsonNode): bool): proc (x: JsonNode): bool =
 
 
 proc close*(db: FlatDb) = 
-  db.stream.flush()
-  db.stream.close()
+  when not defined(js):
+    db.stream.flush()
+    db.stream.close()
 
 proc keepIf*(db: FlatDb, matcher: proc) = 
   ## filters the database file, only lines that match `matcher`
@@ -578,7 +638,7 @@ when isMainModule:
 
 
 
-when isMainModule and defined doNotRun:
+when isMainModule and defined(doNotRun) and not defined(js):
   var db = newFlatDb("test.db", false)
   assert db.load() == true
   var entry = %* {"some": "json", "things": [1,2,3]}
@@ -614,7 +674,14 @@ when isMainModule and defined doNotRun:
   db.close()
 
 
-when isMainModule:
+
+when isMainModule and not defined(js):
   # clear up directory
   removeFile("test.db")
   removeFile("test.db.bak")
+
+when isMainModule and defined(js):
+  var db = newFlatDb("test")
+  echo db.append( %* {"foo":"baa"} )
+  # for each in db.nodes.items:
+  #   echo each

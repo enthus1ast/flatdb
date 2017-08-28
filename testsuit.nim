@@ -2,9 +2,10 @@
 
 import ./flatdb
 import json
-import os
 import sequtils
 
+when defined not defined(js):
+  import os
 # import 
 
 block: # basic tests
@@ -40,4 +41,5 @@ block: # basic tests
 
 
 
-removeFile("tests.db")
+when not defined(js):
+  removeFile("tests.db")
