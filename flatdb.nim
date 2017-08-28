@@ -119,22 +119,20 @@ proc append*(db: FlatDb, node: JsonNode, eid: EntryId = nil): EntryId {.exportc.
   else:
     id = genId()
   
-  
-  if not node.hasKey("_id"):
-    node["_id"] = %* id
-
   if not db.inmemory:
+
+    if not node.hasKey("_id"):
+      node["_id"] = %* id
+
     when not defined(js):
       db.stream.writeLine($node)
+      if not db.manualFlush:
+        db.stream.flush()
     else:
-      jsAppend(db.path, ($node).cstring)
+      jsAppend(db.path, ($node))
   
-  if not db.manualFlush:
-    when not defined(js):
-      db.stream.flush()
-
-
-  echo node
+  
+  # echo node
   # return
   node.delete("_id") # we dont need the key in memory twice
   db.nodes.add(id, node) 
@@ -268,6 +266,7 @@ template queryIterImpl(direction: untyped, settings: QuerySettings) =
         founds.inc
       entry["_id"] = % id
       yield entry
+      entry.delete("_id") #= % id
 
 iterator queryIter*(db: FlatDb, matcher: Matcher ): JsonNode = 
   let settings = newQuerySettings()
