@@ -290,33 +290,33 @@ proc equal*(key: string, val: string): proc =
     return x.getOrDefault(key).getStr() == val
 proc equal*(key: string, val: int): proc = 
   return proc (x: JsonNode): bool = 
-    return x.getOrDefault(key).getNum() == val
+    return x.getOrDefault(key).getInt() == val
 proc equal*(key: string, val: float): proc = 
   return proc (x: JsonNode): bool = 
-    return x.getOrDefault(key).getFnum() == val
+    return x.getOrDefault(key).getFloat() == val
 proc equal*(key: string, val: bool): proc = 
   return proc (x: JsonNode): bool = 
     return x.getOrDefault(key).getBool() == val
 
 
 proc lower*(key: string, val: int): proc = 
-  return proc (x: JsonNode): bool = x.getOrDefault(key).getNum < val
+  return proc (x: JsonNode): bool = x.getOrDefault(key).getInt < val
 proc lower*(key: string, val: float): proc = 
-  return proc (x: JsonNode): bool = x.getOrDefault(key).getFnum < val
+  return proc (x: JsonNode): bool = x.getOrDefault(key).getFloat < val
 proc lowerEqual*(key: string, val: int): proc = 
-  return proc (x: JsonNode): bool = x.getOrDefault(key).getNum <= val
+  return proc (x: JsonNode): bool = x.getOrDefault(key).getInt <= val
 proc lowerEqual*(key: string, val: float): proc = 
-  return proc (x: JsonNode): bool = x.getOrDefault(key).getFnum <= val
+  return proc (x: JsonNode): bool = x.getOrDefault(key).getFloat <= val
 
 
 proc higher*(key: string, val: int): proc = 
-  return proc (x: JsonNode): bool = x.getOrDefault(key).getNum > val
+  return proc (x: JsonNode): bool = x.getOrDefault(key).getInt > val
 proc higher*(key: string, val: float): proc = 
-  return proc (x: JsonNode): bool = x.getOrDefault(key).getFnum > val
+  return proc (x: JsonNode): bool = x.getOrDefault(key).getFloat > val
 proc higherEqual*(key: string, val: int): proc = 
-  return proc (x: JsonNode): bool = x.getOrDefault(key).getNum >= val
+  return proc (x: JsonNode): bool = x.getOrDefault(key).getInt >= val
 proc higherEqual*(key: string, val: float): proc = 
-  return proc (x: JsonNode): bool = x.getOrDefault(key).getFnum >= val
+  return proc (x: JsonNode): bool = x.getOrDefault(key).getFloat >= val
 
 
 proc dbcontains*(key: string, val: string): proc = 
@@ -325,19 +325,19 @@ proc dbcontains*(key: string, val: string): proc =
 
 proc between*(key: string, fromVal:float, toVal: float): proc =
   return proc (x: JsonNode): bool = 
-    let val = x.getOrDefault(key).getFnum
+    let val = x.getOrDefault(key).getFloat
     val > fromVal and val < toVal
 proc between*(key: string, fromVal:int, toVal: int): proc =
   return proc (x: JsonNode): bool = 
-    let val = x.getOrDefault(key).getNum
+    let val = x.getOrDefault(key).getInt
     val > fromVal and val < toVal
 proc betweenEqual*(key: string, fromVal:float, toVal: float): proc =
   return proc (x: JsonNode): bool = 
-    let val = x.getOrDefault(key).getFnum
+    let val = x.getOrDefault(key).getFloat
     val >= fromVal and val <= toVal
 proc betweenEqual*(key: string, fromVal:int, toVal: int): proc =
   return proc (x: JsonNode): bool = 
-    let val = x.getOrDefault(key).getNum
+    let val = x.getOrDefault(key).getInt
     val >= fromVal and val <= toVal
 
 proc has*(key: string): proc = 
@@ -391,17 +391,6 @@ proc deleteReverse*(db: FlatDb, matcher: Matcher ) =
 
 when isMainModule:
   import algorithm
-  ## tests
-  # block:
-    # var db = newFlatDb("test.db", false)
-    # db.drop()
-    # var orgEntry = %* {"my": "test"}
-    # var id = db.append(orgEntry)
-    # assert db.nodes[id] == orgEntry
-    # assert toSeq(db.nodes.values())[0] == orgEntry
-    # db.drop()
-    # assert db.nodes.hasKey(id) == false
-    # db.close()
 
   block:
     # fast write test
@@ -447,9 +436,9 @@ when isMainModule:
       discard db.append(entry)
     db.close()
 
-    db.keepIf(proc(x: JsonNode): bool = return x["foo"].getNum mod 2 == 0 )
+    db.keepIf(proc(x: JsonNode): bool = return x["foo"].getInt mod 2 == 0 )
     echo toSeq(db.nodes.values())[0]
-    db.keepIf(proc(x: JsonNode): bool = return x["foo"].getNum mod 2 == 0 )
+    db.keepIf(proc(x: JsonNode): bool = return x["foo"].getInt mod 2 == 0 )
     echo toSeq(db.nodes.values())[0]
     # quit()
     db.close()
@@ -602,7 +591,7 @@ when isMainModule and defined doNotRun:
       return false
     if not m["things"].len > 1:
       return false
-    if m["things"][1].getNum == 2:
+    if m["things"][1].getInt == 2:
       return true
     return false
 
