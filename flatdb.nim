@@ -12,7 +12,7 @@ import hashes
 import sequtils
 import os
 import random
-import strutils
+import strutils except contains
 import oids
 import flatdbtable
 export flatdbtable
@@ -319,7 +319,7 @@ proc higherEqual*(key: string, val: float): proc =
   return proc (x: JsonNode): bool = x.getOrDefault(key).getFnum >= val
 
 
-proc contains*(key: string, val: string): proc = 
+proc dbcontains*(key: string, val: string): proc = 
   return proc (x: JsonNode): bool = val in x.getOrDefault(key).getStr.contains
 
 
