@@ -12,7 +12,7 @@ import hashes
 import sequtils
 import os
 import random
-import strutils except contains
+import strutils
 import oids
 import flatdbtable
 export flatdbtable
@@ -318,10 +318,10 @@ proc higherEqual*(key: string, val: int): proc =
 proc higherEqual*(key: string, val: float): proc = 
   return proc (x: JsonNode): bool = x.getOrDefault(key).getFloat >= val
 
-
 proc dbcontains*(key: string, val: string): proc = 
-  return proc (x: JsonNode): bool = val in x.getOrDefault(key).getStr.contains
-
+  return proc (x: JsonNode): bool = 
+    let str = x.getOrDefault(key).getStr()
+    return str.contains(val)
 
 proc between*(key: string, fromVal:float, toVal: float): proc =
   return proc (x: JsonNode): bool = 
