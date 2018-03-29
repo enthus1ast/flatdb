@@ -322,6 +322,11 @@ proc dbcontains*(key: string, val: string): proc =
   return proc (x: JsonNode): bool = 
     let str = x.getOrDefault(key).getStr()
     return str.contains(val)
+proc dbcontainsInsensitive*(key: string, val: string): proc = 
+  return proc (x: JsonNode): bool = 
+    let str = x.getOrDefault(key).getStr()
+    return str.toLower().contains(val.toLower())
+
 
 proc between*(key: string, fromVal:float, toVal: float): proc =
   return proc (x: JsonNode): bool = 
@@ -607,3 +612,4 @@ when isMainModule:
   # clear up directory
   removeFile("test.db")
   removeFile("test.db.bak")
+
