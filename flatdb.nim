@@ -325,7 +325,7 @@ proc dbcontains*(key: string, val: string): proc =
 proc dbcontainsInsensitive*(key: string, val: string): proc = 
   return proc (x: JsonNode): bool = 
     let str = x.getOrDefault(key).getStr()
-    return str.toLower().contains(val.toLower())
+    return str.toLowerAscii().contains(val.toLowerAscii())
 
 
 proc between*(key: string, fromVal:float, toVal: float): proc =
