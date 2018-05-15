@@ -8,19 +8,14 @@
 
 ## flat db table 
 ## double linked list with table indexes on the values
-import lists
-import json
-import tables
-import oids
+import lists, json, tables, oids
 
 type 
-
   Node* = DoublyLinkedNode[Entry]
   Entry = tuple[key:string, value: JsonNode]
   FlatDbTableData = DoublyLinkedList[Entry]
   FlatDbTableIndex = Table[string, Node]
   FlatDbTableId = string
-
   FlatDbTable* = ref object
     data: FlatDbTableData
     index: FlatDbTableIndex
@@ -30,7 +25,6 @@ proc newFlatDbTable*(): FlatDbTable =
   result = FlatDbTable()
   result.data = initDoublyLinkedList[Entry]()
   result.size = 0
-
   result.index = initTable[string, Node]()
 
 # proc insert*(table: FlatDbTable, pos: idx, key: string, value: JsonNode) = 
@@ -55,7 +49,6 @@ proc getNode*(table: FlatDbTable, key: string): Node =
 proc hasKey*(table: FlatDbTable, key: string): bool =
   ## returns true if table has a items with key == key
   return table.index.hasKey(key)
-
 
 proc del*(table: FlatDbTable, key: string) =
   var it = table.index[key]
@@ -112,7 +105,6 @@ when isMainModule:
     assert table["id1"] == t1
     assert table["id2"] == t2
 
-
     assert table["id1"].getOrDefault("foo").getNum() == 1
 
     assert toSeq(table.values) == @[t1,t2]
@@ -154,11 +146,9 @@ when isMainModule:
 
   block:
     var table = newFlatDbTable()
-
     for idx in 0..10_000:
       var t1 = %* {"foo": idx}  
       table.add($idx,t1)
 
     for each in table.valuesReverse():
       echo each
-

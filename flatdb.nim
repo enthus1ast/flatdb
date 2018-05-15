@@ -6,19 +6,11 @@
 #    See the file "licence", included in this
 #    distribution, for details about the copyright.
 
-import json
-import streams
-import hashes
-import sequtils
-import os
-import random
-import strutils
-import oids
+import json, streams, hashes, sequtils, os, random, strutils, oids
 import flatdbtable
 export flatdbtable
 
 randomize() # TODO call this at Main?
-
 
 ## this is the custom build 'database' for nimCh4t 
 ## this stores msg lines as json but seperated by "\n"
@@ -27,40 +19,30 @@ randomize() # TODO call this at Main?
 ## This database is designed like:
 ##  - Mostly append only (append only is fast)
 ##  - Update is inefficent (has to write whole database again)
-
 type 
   Limit = int
-
-
-
   FlatDb* = ref object 
     path*: string
     stream*: FileStream
-    # nodes*: OrderedTableRef[string, JsonNode]
     nodes*: FlatDbTable
     inmemory*: bool
-    # queryLimit: int # TODO
     manualFlush*: bool ## if this is set to true one has to manually call stream.flush() 
                        ## else it gets called by every db.append()! 
                        ## so set this to true if you want to append a lot of lines in bulk
                        ## set this to false when finished and call db.stream.flush() once.
                        ## TODO should this be db.stream.flush or db.flush??
-
   EntryId* = string
-
   Matcher* = proc (x: JsonNode): bool 
-
   QuerySettings* = ref object
     limit*: int # end query if the result set has this amounth of entries
     skip*: int # skip the first n entries 
-
 
 # Query Settings ---------------------------------------------------------------------
 proc lim*(settings = QuerySettings(), cnt: int): QuerySettings =
   ## limit the smounth of matches
   result = settings
   result.limit = cnt
-  # nlimit(10).skip(50)
+
 proc skp*(settings = QuerySettings(), cnt: int): QuerySettings =
   ## skips amounth of matches
   result = settings
@@ -77,7 +59,6 @@ proc qs*(): QuerySettings =
   result = newQuerySettings()
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
 proc newFlatDb*(path: string, inmemory: bool = false): FlatDb = 
   # if inmemory is set to true the filesystem gets not touched at all.
   result = FlatDb()
@@ -87,7 +68,6 @@ proc newFlatDb*(path: string, inmemory: bool = false): FlatDb =
     if not fileExists(path):
       open(path, fmWrite).close()    
     result.stream = newFileStream(path, fmReadWriteExisting)
-    
   result.nodes = newFlatDbTable()
   result.manualFlush = false
 
@@ -99,21 +79,18 @@ proc append*(db: FlatDb, node: JsonNode, eid: EntryId = nil): EntryId =
   ## appends a json node to the opened database file (line by line)
   ## even if the file already exists!
   var id: EntryId
-  
   if not eid.isNil:
     id = eid
   elif node.hasKey("_id"):
     id = node["_id"].getStr
   else:
     id = genId()
-  
   if not db.inmemory:
     if not node.hasKey("_id"):
       node["_id"] = %* id
     db.stream.writeLine($node)
   if not db.manualFlush:
     db.stream.flush()
-
   node.delete("_id") # we dont need the key in memory twice
   db.nodes.add(id, node) 
   return id
@@ -121,14 +98,12 @@ proc append*(db: FlatDb, node: JsonNode, eid: EntryId = nil): EntryId =
 proc `[]`*(db: FlatDb, key: string): JsonNode = 
   return db.nodes[key]
   
-
 proc backup*(db: FlatDb) =
   ## Creates a backup of the original db.
   ## We do this to avoid haveing the data only in memory.
   let backupPath = db.path & ".bak"
   removeFile(backupPath) # delete old backup
   copyFile(db.path, backupPath) # copy current db to backup path
-
 
 proc drop*(db: FlatDb) = 
   ## DELETES EVERYTHING
@@ -170,10 +145,8 @@ proc load*(db: FlatDb): bool =
   var id: EntryId
   var needForRewrite: bool = false
   db.nodes.clear()
-
   if db.stream.isNil():
     return false
-
   while db.stream.readLine(line):
     obj = parseJson(line)
     if not obj.hasKey("_id"):
@@ -224,7 +197,6 @@ iterator queryIter*(db: FlatDb, settings: QuerySettings,  matcher: Matcher ): Js
 iterator queryIterReverse*(db: FlatDb, settings: QuerySettings, matcher: Matcher ): JsonNode = 
   queryIterImpl(db.nodes.pairsReverse, settings)
 
-
 # ----------------------------- Query -----------------------------------------
 template queryImpl*(direction: untyped, settings: QuerySettings)  = 
   return toSeq(direction(settings, matcher))
@@ -236,14 +208,12 @@ proc query*(db: FlatDb, matcher: Matcher ): seq[JsonNode] =
 proc query*(db: FlatDb, settings: QuerySettings, matcher: Matcher ): seq[JsonNode] =
   queryImpl(db.queryIter, settings)
 
-
 proc queryReverse*(db: FlatDb, matcher: Matcher ): seq[JsonNode] =
   let settings = newQuerySettings()
   queryImpl(db.queryIterReverse, settings)
 
 proc queryReverse*(db: FlatDb, settings: QuerySettings,  matcher: Matcher ): seq[JsonNode] =
   queryImpl(db.queryIterReverse, settings)
-
 
 # ----------------------------- QueryOne -----------------------------------------
 template queryOneImpl(direction: untyped) = 
@@ -259,7 +229,6 @@ proc queryOneReverse*(db: FlatDb, matcher: Matcher ): JsonNode =
   ## just like query but returns the first match only (iteration stops after first)
   queryOneImpl(db.queryIterReverse)
 
-
 proc queryOne*(db: FlatDb, id: EntryId, matcher: Matcher ): JsonNode = 
   ## returns the entry with `id` and also matching on matcher, if you have the _id, use it, its fast.
   if not db.nodes.hasKey(id):
@@ -267,7 +236,6 @@ proc queryOne*(db: FlatDb, id: EntryId, matcher: Matcher ): JsonNode =
   if matcher(db.nodes[id]):
     return db.nodes[id]
   return nil
-
 
 proc exists*(db: FlatDb, matcher: Matcher ): bool =
   ## returns true if we found at least one match
@@ -281,10 +249,7 @@ proc notExists*(db: FlatDb, matcher: Matcher ): bool =
     return true
   return false
 
-
-
 # ----------------------------- Matcher -----------------------------------------
-
 proc equal*(key: string, val: string): proc = 
   return proc (x: JsonNode): bool = 
     return x.getOrDefault(key).getStr() == val
@@ -298,7 +263,6 @@ proc equal*(key: string, val: bool): proc =
   return proc (x: JsonNode): bool = 
     return x.getOrDefault(key).getBool() == val
 
-
 proc lower*(key: string, val: int): proc = 
   return proc (x: JsonNode): bool = x.getOrDefault(key).getInt < val
 proc lower*(key: string, val: float): proc = 
@@ -307,7 +271,6 @@ proc lowerEqual*(key: string, val: int): proc =
   return proc (x: JsonNode): bool = x.getOrDefault(key).getInt <= val
 proc lowerEqual*(key: string, val: float): proc = 
   return proc (x: JsonNode): bool = x.getOrDefault(key).getFloat <= val
-
 
 proc higher*(key: string, val: int): proc = 
   return proc (x: JsonNode): bool = x.getOrDefault(key).getInt > val
@@ -326,7 +289,6 @@ proc dbcontainsInsensitive*(key: string, val: string): proc =
   return proc (x: JsonNode): bool = 
     let str = x.getOrDefault(key).getStr()
     return str.toLowerAscii().contains(val.toLowerAscii())
-
 
 proc between*(key: string, fromVal:float, toVal: float): proc =
   return proc (x: JsonNode): bool = 
@@ -357,7 +319,6 @@ proc `or`*(p1, p2: proc (x: JsonNode): bool): proc (x: JsonNode): bool =
 proc `not`*(p1: proc (x: JsonNode): bool): proc (x: JsonNode): bool =
   return proc (x: JsonNode): bool = return not p1(x)
 
-
 proc close*(db: FlatDb) = 
   db.stream.flush()
   db.stream.close()
@@ -367,7 +328,6 @@ proc keepIf*(db: FlatDb, matcher: proc) =
   ## will be in the new file.
   # TODO 
   db.store db.query matcher
-
 
 proc delete*(db: FlatDb, id: EntryId) =
   ## deletes entry by id, respects `manualFlush`
@@ -396,33 +356,26 @@ proc deleteReverse*(db: FlatDb, matcher: Matcher ) =
 
 when isMainModule:
   import algorithm
-
   block:
     # fast write test
     let howMany = 10
-
     var db = newFlatDb("test.db", false)
     db.drop()
     var ids = newSeq[EntryId]()
     for each in 0..howMany:
-      # echo "w:", each
       var entry = %* {"foo": each}
       ids.add db.append(entry)
-    # echo db.nodes
     db.close()
 
-    # quit()
     # Now read everything again and check if its good
     db = newFlatDb("test.db", false)
     assert true == db.load()
     var cnt = 0
     for id in ids:
       var entry = %* {"foo": cnt}
-      # echo entry
       assert db.nodes[id] == entry
       cnt.inc
 
-    # echo "passed"
     # Test if table preserves order
     var idx = 0
     for each in db.nodes.values():
@@ -433,7 +386,6 @@ when isMainModule:
 
   block:
     var db = newFlatDb("test.db", false)
-    # assert true == db.load()
     db.drop()
 
     for each in 0..100:
@@ -445,7 +397,6 @@ when isMainModule:
     echo toSeq(db.nodes.values())[0]
     db.keepIf(proc(x: JsonNode): bool = return x["foo"].getInt mod 2 == 0 )
     echo toSeq(db.nodes.values())[0]
-    # quit()
     db.close()
 
   block: #bug outofbound
@@ -470,11 +421,8 @@ when isMainModule:
 
       # The actual update
       db.nodes[id]["password"] = % "123"
-      # echo db.nodes
-
       db.flush()
       db.close()
-
 
   block :
       var db = newFlatDb("test.db", false)
@@ -501,7 +449,6 @@ when isMainModule:
       let res = db.query((equal("user", "sn0re") and (equal("password", "pw2") or equal("password", "pw1"))))
       assert res[0]["password"].getStr == "pw1"
       assert res[1]["password"].getStr == "pw2"
-      # quit()
       db.close()
   block:
       var db = newFlatDb("test.db", false)
@@ -529,13 +476,9 @@ when isMainModule:
       var res = db.query(not(equal("user", "sn0re")))
       echo res
       echo res[0] == db[res[0]["_id"].getStr]
-
       db.close()
 
-
-
   block:
-      
       var db = newFlatDb("test.db", false)
       db.drop()
 
@@ -554,23 +497,10 @@ when isMainModule:
       entry = %* {"user":"sn0re", "id": 4}
       discard db.append(entry)    
 
-      
-      # echo db.query(10.Limit ,  equal("user", "sn0re"))
-      # echo db.query( 2.Limit, equal("user", "sn0re") )
-      # var entries = db.query( 2, equal("user", "sn0re") )
-      # db.query equal("user", "sn0re") 
-      # echo db.queryReverse( qs().limit(2) , equal("user", "sn0re") ) #.reversed()
-      # var ss = 
-      # echo (newQuerySettings().nlimit(10))
       echo "######"
       echo db.queryReverse( qs().lim(2), equal("user", "sn0re") ).reversed()
       echo "^^^^^^"
-      # assert db.query(        2, equal("user", "sn0re") ) == @[%* {"user":"sn0re", "id": 1}, %* {"user":"sn0re", "id": 2}] 
-      # assert db.queryReverse( 2, equal("user", "sn0re") ) == @[%* {"user":"sn0re", "id": 4}, %* {"user":"sn0re", "id": 3}]
-
       db.close()
-
-
 
 when isMainModule and defined doNotRun:
   var db = newFlatDb("test.db", false)
@@ -580,8 +510,6 @@ when isMainModule and defined doNotRun:
   entryId = db.append(entry)
   echo entryId
   echo db.nodes[entryId]
-  # for each in db.nodes.values():
-    # echo each
 
   entry = %* {"some": "json", "things": [1,3]}
   entryId = db.append(entry)
@@ -601,15 +529,9 @@ when isMainModule and defined doNotRun:
     return false
 
   echo db.query(m1)
-  # entryId = db.append(entry)
-  # entryId = db.append(entry)
-  # entryId = db.append(entry)
-
   db.close()
-
 
 when isMainModule:
   # clear up directory
   removeFile("test.db")
   removeFile("test.db.bak")
-
