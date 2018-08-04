@@ -52,7 +52,7 @@ echo db.query(  (equal("foo", "baz") and equal("hallo", "nim")) or lower("long",
 
 
 # you decide if it makes more sense for you to start the 
-# query at the end of the table (at the oldest item); use the *Reverse procs.
+# query at the end of the table (at the newest item); use the *Reverse procs.
 echo db.queryReverse equal("foo", "baa") 
 echo db.queryReverse(  (equal("foo", "baz") and equal("hallo", "nim")) or lower("long", 100) )
 
