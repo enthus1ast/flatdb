@@ -75,11 +75,11 @@ proc genId*(): EntryId =
   ## Mongo id compatible
   return $genOid()
 
-proc append*(db: FlatDb, node: JsonNode, eid: EntryId = nil): EntryId = 
+proc append*(db: FlatDb, node: JsonNode, eid: EntryId = ""): EntryId = 
   ## appends a json node to the opened database file (line by line)
   ## even if the file already exists!
   var id: EntryId
-  if not eid.isNil:
+  if not (eid == ""):
     id = eid
   elif node.hasKey("_id"):
     id = node["_id"].getStr
@@ -168,7 +168,7 @@ proc getNode*(db: FlatDb, key: EntryId): Node =
   return db.nodes.getNode($key)
 
 # ----------------------------- Query Iterators -----------------------------------------
-template queryIterImpl(direction: untyped, settings: QuerySettings) = 
+template queryIterImpl(direction: untyped, settings: QuerySettings, matcher: Matcher) = 
   var founds: int = 0
   var skipped: int = 0
   for id, entry in direction():
@@ -185,38 +185,38 @@ template queryIterImpl(direction: untyped, settings: QuerySettings) =
 
 iterator queryIter*(db: FlatDb, matcher: Matcher ): JsonNode = 
   let settings = newQuerySettings()
-  queryIterImpl(db.nodes.pairs, settings)
+  queryIterImpl(db.nodes.pairs, settings, matcher)
 
 iterator queryIterReverse*(db: FlatDb, matcher: Matcher ): JsonNode = 
   let settings = newQuerySettings()
-  queryIterImpl(db.nodes.pairsReverse, settings)
+  queryIterImpl(db.nodes.pairsReverse, settings, matcher)
 
 iterator queryIter*(db: FlatDb, settings: QuerySettings,  matcher: Matcher ): JsonNode = 
-  queryIterImpl(db.nodes.pairs, settings)
+  queryIterImpl(db.nodes.pairs, settings, matcher)
 
 iterator queryIterReverse*(db: FlatDb, settings: QuerySettings, matcher: Matcher ): JsonNode = 
-  queryIterImpl(db.nodes.pairsReverse, settings)
+  queryIterImpl(db.nodes.pairsReverse, settings, matcher)
 
 # ----------------------------- Query -----------------------------------------
-template queryImpl*(direction: untyped, settings: QuerySettings)  = 
+template queryImpl*(direction: untyped, settings: QuerySettings, matcher: Matcher)  = 
   return toSeq(direction(settings, matcher))
 
 proc query*(db: FlatDb, matcher: Matcher ): seq[JsonNode] =
   let settings = newQuerySettings()
-  queryImpl(db.queryIter, settings)
+  queryImpl(db.queryIter, settings, matcher)
 
 proc query*(db: FlatDb, settings: QuerySettings, matcher: Matcher ): seq[JsonNode] =
-  queryImpl(db.queryIter, settings)
+  queryImpl(db.queryIter, settings, matcher)
 
 proc queryReverse*(db: FlatDb, matcher: Matcher ): seq[JsonNode] =
   let settings = newQuerySettings()
-  queryImpl(db.queryIterReverse, settings)
+  queryImpl(db.queryIterReverse, settings, matcher)
 
 proc queryReverse*(db: FlatDb, settings: QuerySettings,  matcher: Matcher ): seq[JsonNode] =
-  queryImpl(db.queryIterReverse, settings)
+  queryImpl(db.queryIterReverse, settings, matcher)
 
 # ----------------------------- QueryOne -----------------------------------------
-template queryOneImpl(direction: untyped) = 
+template queryOneImpl(direction: untyped, matcher: Matcher) = 
   for entry in direction(matcher):
     if matcher(entry):
       return entry
@@ -224,10 +224,10 @@ template queryOneImpl(direction: untyped) =
 
 proc queryOne*(db: FlatDb, matcher: Matcher ): JsonNode = 
   ## just like query but returns the first match only (iteration stops after first)
-  queryOneImpl(db.queryIter)
+  queryOneImpl(db.queryIter, matcher)
 proc queryOneReverse*(db: FlatDb, matcher: Matcher ): JsonNode = 
   ## just like query but returns the first match only (iteration stops after first)
-  queryOneImpl(db.queryIterReverse)
+  queryOneImpl(db.queryIterReverse, matcher)
 
 proc queryOne*(db: FlatDb, id: EntryId, matcher: Matcher ): JsonNode = 
   ## returns the entry with `id` and also matching on matcher, if you have the _id, use it, its fast.
@@ -251,16 +251,16 @@ proc notExists*(db: FlatDb, matcher: Matcher ): bool =
 
 # ----------------------------- Matcher -----------------------------------------
 proc equal*(key: string, val: string): proc = 
-  return proc (x: JsonNode): bool = 
+  return proc (x: JsonNode): bool {.closure.} = 
     return x.getOrDefault(key).getStr() == val
 proc equal*(key: string, val: int): proc = 
-  return proc (x: JsonNode): bool = 
+  return proc (x: JsonNode): bool {.closure.} = 
     return x.getOrDefault(key).getInt() == val
 proc equal*(key: string, val: float): proc = 
-  return proc (x: JsonNode): bool = 
+  return proc (x: JsonNode): bool {.closure.} = 
     return x.getOrDefault(key).getFloat() == val
 proc equal*(key: string, val: bool): proc = 
-  return proc (x: JsonNode): bool = 
+  return proc (x: JsonNode): bool {.closure.} = 
     return x.getOrDefault(key).getBool() == val
 
 proc lower*(key: string, val: int): proc = 
@@ -338,7 +338,7 @@ proc delete*(db: FlatDb, id: EntryId) =
   if not db.manualFlush and hit:
     db.flush()
 
-template deleteImpl(direction: untyped) = 
+template deleteImpl(direction: untyped, matcher: Matcher) = 
   var hit = false
   for item in direction( matcher ):
     hit = true
@@ -348,11 +348,11 @@ template deleteImpl(direction: untyped) =
 proc delete*(db: FlatDb, matcher: Matcher ) =
   ## deletes entry by matcher, respects `manualFlush`
   ## TODO make this in the new form (withouth truncate every time)  
-  deleteImpl db.queryIter
+  deleteImpl(db.queryIter, matcher)
 proc deleteReverse*(db: FlatDb, matcher: Matcher ) =
   ## deletes entry by matcher, respects `manualFlush`
   ## TODO make this in the new form (withouth truncate every time)  
-  deleteImpl db.queryIterReverse    
+  deleteImpl(db.queryIterReverse, matcher)
 
 when isMainModule:
   import algorithm
