@@ -1,6 +1,6 @@
 ## Testsuit for flatdb
 
-import ./flatdb
+import flatdb
 import json
 import os
 import sequtils

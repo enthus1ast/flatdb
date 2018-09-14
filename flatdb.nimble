@@ -1,11 +1,12 @@
 # Package
 
-version       = "0.1.6"
+version       = "0.1.7"
 author        = "enthus1ast"
 description   = "small/tiny, flatfile, jsonl based, inprogress database for nim"
 license       = "MIT"
 
-# Dependencies
+srcDir = "src"
 
+# Dependencies
 requires "nim >= 0.17.0"
 

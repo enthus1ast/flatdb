@@ -111,7 +111,7 @@ when isMainModule:
     assert toSeq(table.valuesReverse) == @[t2, t1]
 
     assert toSeq(table.pairs) == @[("id1", t1), ("id2", t2)]
-    assert toSeq(table.pairsReverse) ==  @[("id2", t2),("id1", t1)]
+    assert toSeq(table.pairsReverse) == @[("id2", t2),("id1", t1)]
 
     assert table.len == 2
     table.del("id2")

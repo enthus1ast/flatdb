@@ -9,7 +9,6 @@
 import json, streams, hashes, sequtils, os, random, strutils, oids
 import flatdbtable
 export flatdbtable
-
 randomize() # TODO call this at Main?
 
 ## this is the custom build 'database' for nimCh4t 
@@ -239,7 +238,7 @@ proc queryOne*(db: FlatDb, id: EntryId, matcher: Matcher ): JsonNode =
 
 proc exists*(db: FlatDb, matcher: Matcher ): bool =
   ## returns true if we found at least one match
-  if db.queryOne(matcher).isNil:
+  if queryOne(db, matcher).isNil:
     return false
   return true
 
@@ -338,21 +337,19 @@ proc delete*(db: FlatDb, id: EntryId) =
   if not db.manualFlush and hit:
     db.flush()
 
-template deleteImpl(direction: untyped, matcher: Matcher) = 
+template deleteImpl(db: FlatDb, direction: untyped, matcher: Matcher) = 
   var hit = false
-  for item in direction( matcher ):
+  for item in direction(matcher):
     hit = true
     db.nodes.del(item["_id"].getStr)
   if (not db.manualFlush) and hit:
     db.flush()
-proc delete*(db: FlatDb, matcher: Matcher ) =
+template delete*(db: FlatDb, matcher: Matcher) =
   ## deletes entry by matcher, respects `manualFlush`
-  ## TODO make this in the new form (withouth truncate every time)  
-  deleteImpl(db.queryIter, matcher)
-proc deleteReverse*(db: FlatDb, matcher: Matcher ) =
+  deleteImpl(db, db.queryIter, matcher)
+template deleteReverse*(db: FlatDb, matcher: Matcher ) =
   ## deletes entry by matcher, respects `manualFlush`
-  ## TODO make this in the new form (withouth truncate every time)  
-  deleteImpl(db.queryIterReverse, matcher)
+  deleteImpl(db, db.queryIterReverse, matcher)
 
 when isMainModule:
   import algorithm
