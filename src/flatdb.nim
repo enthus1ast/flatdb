@@ -250,16 +250,16 @@ proc notExists*(db: FlatDb, matcher: Matcher ): bool =
 
 # ----------------------------- Matcher -----------------------------------------
 proc equal*(key: string, val: string): proc = 
-  return proc (x: JsonNode): bool {.closure.} = 
+  return proc (x: JsonNode): bool  = 
     return x.getOrDefault(key).getStr() == val
 proc equal*(key: string, val: int): proc = 
-  return proc (x: JsonNode): bool {.closure.} = 
+  return proc (x: JsonNode): bool  = 
     return x.getOrDefault(key).getInt() == val
 proc equal*(key: string, val: float): proc = 
-  return proc (x: JsonNode): bool {.closure.} = 
+  return proc (x: JsonNode): bool  = 
     return x.getOrDefault(key).getFloat() == val
 proc equal*(key: string, val: bool): proc = 
-  return proc (x: JsonNode): bool {.closure.} = 
+  return proc (x: JsonNode): bool  = 
     return x.getOrDefault(key).getBool() == val
 
 proc lower*(key: string, val: int): proc = 
@@ -309,13 +309,13 @@ proc betweenEqual*(key: string, fromVal:int, toVal: int): proc =
 proc has*(key: string): proc = 
   return proc (x: JsonNode): bool = return x.hasKey(key)
 
-proc `and`*(p1, p2: proc (x: JsonNode): bool): proc (x: JsonNode): bool =
+proc `and`*(p1, p2: proc (x: JsonNode): bool): proc (x: JsonNode): bool {.gcsafe, noSideEffect.} =
   return proc (x: JsonNode): bool = return p1(x) and p2(x)
 
-proc `or`*(p1, p2: proc (x: JsonNode): bool): proc (x: JsonNode): bool =
+proc `or`*(p1, p2: proc (x: JsonNode): bool): proc (x: JsonNode): bool {.gcsafe, noSideEffect.} =
   return proc (x: JsonNode): bool = return p1(x) or p2(x)
 
-proc `not`*(p1: proc (x: JsonNode): bool): proc (x: JsonNode): bool =
+proc `not`*(p1: proc (x: JsonNode): bool): proc (x: JsonNode): bool {.gcsafe, noSideEffect.} =
   return proc (x: JsonNode): bool = return not p1(x)
 
 proc close*(db: FlatDb) = 
