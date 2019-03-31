@@ -309,13 +309,13 @@ proc betweenEqual*(key: string, fromVal:int, toVal: int): proc =
 proc has*(key: string): proc = 
   return proc (x: JsonNode): bool = return x.hasKey(key)
 
-proc `and`*(p1, p2: proc (x: JsonNode): bool): proc (x: JsonNode): bool {.gcsafe, noSideEffect.} =
+proc `and`*(p1, p2: proc (x: JsonNode): bool): proc (x: JsonNode): bool =
   return proc (x: JsonNode): bool = return p1(x) and p2(x)
 
-proc `or`*(p1, p2: proc (x: JsonNode): bool): proc (x: JsonNode): bool {.gcsafe, noSideEffect.} =
+proc `or`*(p1, p2: proc (x: JsonNode): bool): proc (x: JsonNode): bool =
   return proc (x: JsonNode): bool = return p1(x) or p2(x)
 
-proc `not`*(p1: proc (x: JsonNode): bool): proc (x: JsonNode): bool {.gcsafe, noSideEffect.} =
+proc `not`*(p1: proc (x: JsonNode): bool): proc (x: JsonNode): bool =
   return proc (x: JsonNode): bool = return not p1(x)
 
 proc close*(db: FlatDb) = 
