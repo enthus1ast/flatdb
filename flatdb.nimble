@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.1.9"
+version       = "0.2.0"
 author        = "enthus1ast"
 description   = "small/tiny, flatfile, jsonl based, inprogress database for nim"
 license       = "MIT"

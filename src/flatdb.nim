@@ -116,7 +116,8 @@ proc store*(db: FlatDb, nodes: seq[JsonNode]) =
   ## write every json node to the db.
   ## overwriteing everything.
   ## but creates a backup first
-  echo "----------- Store got called on: ", db.path
+  # when not defined(release):
+  #   echo "----------- Store got called on: ", db.path
   db.backup()
   db.drop()
   db.manualFlush = true
@@ -130,7 +131,8 @@ proc flush*(db: FlatDb) =
   ## overwrites everything.
   ## If you have done changes in db.nodes you have to call db.flush() to sync it to the filesystem
   # var allNodes = toSeq(db.nodes.values())
-  echo "----------- Flush got called on: ", db.path
+  # when not defined(release):
+  #   echo "----------- Flush got called on: ", db.path
   var allNodes = newSeq[JsonNode]()
   for id, node in db.nodes.pairs():
     node["_id"] = %* id
@@ -350,185 +352,3 @@ template delete*(db: FlatDb, matcher: Matcher) =
 template deleteReverse*(db: FlatDb, matcher: Matcher ) =
   ## deletes entry by matcher, respects `manualFlush`
   deleteImpl(db, db.queryIterReverse, matcher)
-
-when isMainModule:
-  import algorithm
-  block:
-    # fast write test
-    let howMany = 10
-    var db = newFlatDb("test.db", false)
-    db.drop()
-    var ids = newSeq[EntryId]()
-    for each in 0..howMany:
-      var entry = %* {"foo": each}
-      ids.add db.append(entry)
-    db.close()
-
-    # Now read everything again and check if its good
-    db = newFlatDb("test.db", false)
-    assert true == db.load()
-    var cnt = 0
-    for id in ids:
-      var entry = %* {"foo": cnt}
-      assert db.nodes[id] == entry
-      cnt.inc
-
-    # Test if table preserves order
-    var idx = 0
-    for each in db.nodes.values():
-      var entry = %* {"foo": idx}
-      assert each == entry
-      idx.inc
-    db.close()
-
-  block:
-    var db = newFlatDb("test.db", false)
-    db.drop()
-
-    for each in 0..100:
-      var entry = %* {"foo": each}
-      discard db.append(entry)
-    db.close()
-
-    db.keepIf(proc(x: JsonNode): bool = return x["foo"].getInt mod 2 == 0 )
-    echo toSeq(db.nodes.values())[0]
-    db.keepIf(proc(x: JsonNode): bool = return x["foo"].getInt mod 2 == 0 )
-    echo toSeq(db.nodes.values())[0]
-    db.close()
-
-  block: #bug outofbound
-    var db = newFlatDb("test.db", false)
-    discard db.load()
-    var entry = %* {"type":"message","to":"lobby","from":"sn0re","content":"asd"}
-    discard db.append(entry)
-    db.close()
-
-  block: 
-      # an example of an "update"
-      var db = newFlatDb("test.db", false)
-      db.drop()
-
-      # testdata
-      var entry: JsonNode
-      entry = %* {"user":"sn0re", "password": "asdflkjsaflkjsaf"}
-      discard db.append(entry)  
-
-      entry = %* {"user":"klaus", "password": "hahahahsdfksafjj"}
-      let id =  db.append(entry)  
-
-      # The actual update
-      db.nodes[id]["password"] = % "123"
-      db.flush()
-      db.close()
-
-  block :
-      var db = newFlatDb("test.db", false)
-      db.drop()
-
-      # testdata
-      var entry: JsonNode
-      entry = %* {"user":"sn0re", "password": "pw1"}
-      discard db.append(entry)      
-
-      entry = %* {"user":"sn0re", "password": "pw2"}
-      discard db.append(entry)      
-
-      entry = %* {"user":"sn0re", "password": "pw3"}
-      discard db.append(entry)      
-
-      entry = %* {"user":"klaus", "password": "asdflkjsaflkjsaf"}
-      discard db.append(entry)
-
-      entry = %* {"user":"uggu", "password": "asdflkjsaflkjsaf"}
-      discard db.append(entry)
-
-      assert db.query((equal("user", "sn0re") and equal("password", "pw2")))[0]["password"].getStr == "pw2"
-      let res = db.query((equal("user", "sn0re") and (equal("password", "pw2") or equal("password", "pw1"))))
-      assert res[0]["password"].getStr == "pw1"
-      assert res[1]["password"].getStr == "pw2"
-      db.close()
-  block:
-      var db = newFlatDb("test.db", false)
-      db.drop()
-
-      # testdata
-      var entry: JsonNode
-
-      entry = %* {"user":"sn0re", "timestamp": 10.0}
-      discard db.append(entry)  
-
-      entry = %* {"user":"sn0re", "timestamp": 100.0}
-      discard db.append(entry)  
-
-      entry = %* {"user":"klaus", "timestamp": 200.0}
-      discard db.append(entry)  
-
-      entry = %* {"user":"klaus", "timestamp": 250.0}
-      discard db.append(entry)  
-
-      echo db.query higher("timestamp", 150.0)
-      echo db.query higher("timestamp", 150.0) and lower("timestamp", 210.0)
-      echo db.query equal("user", "sn0re") and  (higher("timestamp", 20.0) and ( lower("timestamp", 210.0) ) )
-
-      var res = db.query(not(equal("user", "sn0re")))
-      echo res
-      echo res[0] == db[res[0]["_id"].getStr]
-      db.close()
-
-  block:
-      var db = newFlatDb("test.db", false)
-      db.drop()
-
-      # testdata
-      var entry: JsonNode
-
-      entry = %* {"user":"sn0re", "id": 1}
-      discard db.append(entry)  
-
-      entry = %* {"user":"sn0re", "id": 2}
-      discard db.append(entry)  
-
-      entry = %* {"user":"sn0re", "id": 3}
-      discard db.append(entry)  
-
-      entry = %* {"user":"sn0re", "id": 4}
-      discard db.append(entry)    
-
-      echo "######"
-      echo db.queryReverse( qs().lim(2), equal("user", "sn0re") ).reversed()
-      echo "^^^^^^"
-      db.close()
-
-when isMainModule and defined doNotRun:
-  var db = newFlatDb("test.db", false)
-  assert db.load() == true
-  var entry = %* {"some": "json", "things": [1,2,3]}
-  var entryId = db.append(entry)
-  entryId = db.append(entry)
-  echo entryId
-  echo db.nodes[entryId]
-
-  entry = %* {"some": "json", "things": [1,3]}
-  entryId = db.append(entry)
-
-  entry = %* {"hahahahahahhaha": "json", "things": [1,2,3]}
-  entryId = db.append(entry)
-
-  proc m1(m:JsonNode): bool = 
-    # a custom query example
-    # test if things[1] == 2
-    if not m.hasKey("things"):
-      return false
-    if not m["things"].len > 1:
-      return false
-    if m["things"][1].getInt == 2:
-      return true
-    return false
-
-  echo db.query(m1)
-  db.close()
-
-when isMainModule:
-  # clear up directory
-  removeFile("test.db")
-  removeFile("test.db.bak")
