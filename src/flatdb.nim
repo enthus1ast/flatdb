@@ -240,79 +240,75 @@ proc queryOne*(db: FlatDb, id: EntryId, matcher: Matcher ): JsonNode =
 
 proc exists*(db: FlatDb, id: EntryId): bool = 
   ## returns true if entry with given EntryId exists
-  return db.nodes.hashKey(id)
+  return db.nodes.hasKey(id)
 
 proc exists*(db: FlatDb, matcher: Matcher): bool =
   ## returns true if we found at least one match
-  if queryOne(db, matcher).isNil:
-    return false
-  return true
+  return (not queryOne(db, matcher).isNil)
 
 proc notExists*(db: FlatDb, matcher: Matcher): bool =
   ## returns false if we found no match
-  if db.queryOne(matcher).isNil:
-    return true
-  return false
+  return not db.exists(matcher)
 
 # ----------------------------- Matcher -----------------------------------------
-proc equal*(key: string, val: string): proc = 
+proc equal*(key: string, val: string): proc {.inline.} = 
   return proc (x: JsonNode): bool  = 
     return x.getOrDefault(key).getStr() == val
-proc equal*(key: string, val: int): proc = 
+proc equal*(key: string, val: int): proc {.inline.} = 
   return proc (x: JsonNode): bool  = 
     return x.getOrDefault(key).getInt() == val
-proc equal*(key: string, val: float): proc = 
+proc equal*(key: string, val: float): proc {.inline.} = 
   return proc (x: JsonNode): bool  = 
     return x.getOrDefault(key).getFloat() == val
-proc equal*(key: string, val: bool): proc = 
+proc equal*(key: string, val: bool): proc {.inline.} = 
   return proc (x: JsonNode): bool  = 
     return x.getOrDefault(key).getBool() == val
 
-proc lower*(key: string, val: int): proc = 
+proc lower*(key: string, val: int): proc {.inline.} = 
   return proc (x: JsonNode): bool = x.getOrDefault(key).getInt < val
-proc lower*(key: string, val: float): proc = 
+proc lower*(key: string, val: float): proc {.inline.} = 
   return proc (x: JsonNode): bool = x.getOrDefault(key).getFloat < val
-proc lowerEqual*(key: string, val: int): proc = 
+proc lowerEqual*(key: string, val: int): proc {.inline.} = 
   return proc (x: JsonNode): bool = x.getOrDefault(key).getInt <= val
-proc lowerEqual*(key: string, val: float): proc = 
+proc lowerEqual*(key: string, val: float): proc {.inline.} = 
   return proc (x: JsonNode): bool = x.getOrDefault(key).getFloat <= val
 
-proc higher*(key: string, val: int): proc = 
+proc higher*(key: string, val: int): proc {.inline.} = 
   return proc (x: JsonNode): bool = x.getOrDefault(key).getInt > val
-proc higher*(key: string, val: float): proc = 
+proc higher*(key: string, val: float): proc {.inline.} = 
   return proc (x: JsonNode): bool = x.getOrDefault(key).getFloat > val
-proc higherEqual*(key: string, val: int): proc = 
+proc higherEqual*(key: string, val: int): proc {.inline.} = 
   return proc (x: JsonNode): bool = x.getOrDefault(key).getInt >= val
-proc higherEqual*(key: string, val: float): proc = 
+proc higherEqual*(key: string, val: float): proc {.inline.} = 
   return proc (x: JsonNode): bool = x.getOrDefault(key).getFloat >= val
 
-proc dbcontains*(key: string, val: string): proc = 
+proc dbcontains*(key: string, val: string): proc {.inline.} = 
   return proc (x: JsonNode): bool = 
     let str = x.getOrDefault(key).getStr()
     return str.contains(val)
-proc dbcontainsInsensitive*(key: string, val: string): proc = 
+proc dbcontainsInsensitive*(key: string, val: string): proc {.inline.} = 
   return proc (x: JsonNode): bool = 
     let str = x.getOrDefault(key).getStr()
     return str.toLowerAscii().contains(val.toLowerAscii())
 
-proc between*(key: string, fromVal:float, toVal: float): proc =
+proc between*(key: string, fromVal:float, toVal: float): proc {.inline.} =
   return proc (x: JsonNode): bool = 
     let val = x.getOrDefault(key).getFloat
     val > fromVal and val < toVal
-proc between*(key: string, fromVal:int, toVal: int): proc =
+proc between*(key: string, fromVal:int, toVal: int): proc {.inline.} =
   return proc (x: JsonNode): bool = 
     let val = x.getOrDefault(key).getInt
     val > fromVal and val < toVal
-proc betweenEqual*(key: string, fromVal:float, toVal: float): proc =
+proc betweenEqual*(key: string, fromVal:float, toVal: float): proc {.inline.} =
   return proc (x: JsonNode): bool = 
     let val = x.getOrDefault(key).getFloat
     val >= fromVal and val <= toVal
-proc betweenEqual*(key: string, fromVal:int, toVal: int): proc =
+proc betweenEqual*(key: string, fromVal:int, toVal: int): proc {.inline.} =
   return proc (x: JsonNode): bool = 
     let val = x.getOrDefault(key).getInt
     val >= fromVal and val <= toVal
 
-proc has*(key: string): proc = 
+proc has*(key: string): proc {.inline.} = 
   return proc (x: JsonNode): bool = return x.hasKey(key)
 
 proc `and`*(p1, p2: proc (x: JsonNode): bool): proc (x: JsonNode): bool =

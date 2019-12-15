@@ -28,12 +28,13 @@ suite "flatdb test":
     assert db[eid] == tst
     assert db.len == 1
     assert db.nodes.len == 1
-    assert db.query( qs().lim(1) , equal("foo", 1) ) == @[tst]
-    assert db.queryReverse( qs().lim(1) , equal("foo", 1) ) == @[tst]
-    assert db.query( qs().lim(0) , equal("foo", 1) ) == @[]
-    assert db.query( qs().skp(1) , equal("foo", 1) ) == @[]
-    assert db.query( qs().skp(0).lim(0) , equal("foo", 1) ) == @[]
-    assert db.query( qs().skp(0).lim(1) , equal("foo", 1) ) == @[tst]
+    assert db.query(qs().lim(1) , equal("foo", 1)) == @[tst]
+    assert db.queryReverse(qs().lim(1) , equal("foo", 1)) == @[tst]
+    assert db.query(qs().lim(0) , equal("foo", 1)) == @[]
+    assert db.query(qs().skp(1) , equal("foo", 1)) == @[]
+    assert db.query(qs().skp(0).lim(0) , equal("foo", 1)) == @[]
+    assert db.query(qs().skp(0).lim(1) , equal("foo", 1)) == @[tst]
+    assert db.exists(eid)
     assert db.exists( equal("foo", 1))
     assert db.notExists( equal("foo", 2))
     assert db.exists(lower("foo", 2) and higher("foo", 0))
