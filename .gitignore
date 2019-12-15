@@ -1,4 +1,10 @@
-**.db
-**.db.bak
+*.db
+*.db.bak
+*.exe
+src/*.db
+src/*.db.bak
+src/*.exe
+test/*.db
+test/*.db.bak
+test/*.exe
 *nimcache*
-**.exe
