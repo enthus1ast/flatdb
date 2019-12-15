@@ -236,13 +236,17 @@ proc queryOne*(db: FlatDb, id: EntryId, matcher: Matcher ): JsonNode =
     return db.nodes[id]
   return nil
 
-proc exists*(db: FlatDb, matcher: Matcher ): bool =
+proc exists*(db: FlatDb, id: EntryId): bool = 
+  ## returns true if entry with given EntryId exists
+  return db.nodes.hashKey(id)
+
+proc exists*(db: FlatDb, matcher: Matcher): bool =
   ## returns true if we found at least one match
   if queryOne(db, matcher).isNil:
     return false
   return true
 
-proc notExists*(db: FlatDb, matcher: Matcher ): bool =
+proc notExists*(db: FlatDb, matcher: Matcher): bool =
   ## returns false if we found no match
   if db.queryOne(matcher).isNil:
     return true
