@@ -96,6 +96,9 @@ proc append*(db: FlatDb, node: JsonNode, eid: EntryId = ""): EntryId =
 
 proc `[]`*(db: FlatDb, key: string): JsonNode = 
   return db.nodes[key]
+
+proc `[]=`*(db: FlatDb, key: string, value: JsonNode) =
+  db.nodes[key] = value
   
 proc backup*(db: FlatDb) =
   ## Creates a backup of the original db.
