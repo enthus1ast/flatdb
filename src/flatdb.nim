@@ -70,9 +70,9 @@ proc newFlatDb*(path: string, inmemory: bool = false): FlatDb =
   result.nodes = newFlatDbTable()
   result.manualFlush = false
 
-proc genId*(): EntryId = 
+template genId*(): EntryId = 
   ## Mongo id compatible
-  return $genOid()
+  $genOid()
 
 proc append*(db: FlatDb, node: JsonNode, eid: EntryId = ""): EntryId = 
   ## appends a json node to the opened database file (line by line)
@@ -173,11 +173,11 @@ template `[]=`*(db: FlatDb, key: string, value: JsonNode, flush = true) =
   ## see `update`
   db.update(key, value, flush)
 
-proc len*(db: FlatDb): int = 
-  return db.nodes.len()
+template len*(db: FlatDb): int = 
+  db.nodes.len()
 
-proc getNode*(db: FlatDb, key: EntryId): Node =
-  return db.nodes.getNode($key)
+template getNode*(db: FlatDb, key: EntryId): Node =
+  db.nodes.getNode($key)
 
 # ----------------------------- Query Iterators -----------------------------------------
 template queryIterImpl(direction: untyped, settings: QuerySettings, matcher: Matcher) = 
