@@ -93,12 +93,6 @@ proc append*(db: FlatDb, node: JsonNode, eid: EntryId = ""): EntryId =
   node.delete("_id") # we dont need the key in memory twice
   db.nodes.add(id, node) 
   return id
-
-proc `[]`*(db: FlatDb, key: string): JsonNode = 
-  return db.nodes[key]
-
-proc `[]=`*(db: FlatDb, key: string, value: JsonNode) =
-  db.nodes[key] = value
   
 proc backup*(db: FlatDb) =
   ## Creates a backup of the original db.
@@ -164,6 +158,16 @@ proc load*(db: FlatDb): bool =
     echo "Generated missing ids rewriting database"
     db.flush()
   return true
+
+proc `[]`*(db: FlatDb, key: string): JsonNode = 
+  return db.nodes[key]
+
+proc `[]=`*(db: FlatDb, key: string, value: JsonNode, flush = true) =
+  ## Updates an entry, if `flush == true` database gets flushed afterwards
+  ## Updateing the db is expensive!
+  db.nodes[key] = value
+  if flush:
+    db.flush()
 
 proc len*(db: FlatDb): int = 
   return db.nodes.len()

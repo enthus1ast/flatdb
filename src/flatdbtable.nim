@@ -38,7 +38,7 @@ proc add*(table: FlatDbTable, key: string,  value: JsonNode) = #: FlatDbTableId 
 proc `[]`*(table: FlatDbTable, key: string): JsonNode = 
   return table.index[key].value[1] 
 
-proc `[]=`(table: FlatDbTable, key: string, value: JsonNode) =
+proc `[]=`*(table: FlatDbTable, key: string, value: JsonNode) =
    table.index[key].value.value = value
 
 proc getNode*(table: FlatDbTable, key: string): Node =
