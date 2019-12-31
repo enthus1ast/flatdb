@@ -259,7 +259,7 @@ suite "flatdb test":
     assert @[entry3] == db.query(m1)
     db.close()
   
-  test "upsert":
+  test "upsert by id":
     var db = newFlatDb("test.db", false)
     assert db.load() == true
     db.drop()
@@ -268,6 +268,28 @@ suite "flatdb test":
     let entry2 = %* {"user":"peter", "timestamp": 10.0}
     check entry1Id == db.upsert(entry2, entry1Id)
     check db[entry1Id]["user"].getStr() == "peter"
+
+  test "upsert by matcher":
+    var db = newFlatDb("test.db", false)
+    assert db.load() == true
+    db.drop()
+    let entry1 = %* {"user":"sn0re", "timestamp": 10.0}
+    let entry1Id = db.append(entry1)  
+    let entry2 = %* {"user":"peter", "timestamp": 10.0}
+    check entry1Id == db.upsert(entry2, equal("user", "sn0re"))
+    check db[entry1Id]["user"].getStr() == "peter"
+
+  ### TODO ?
+  # test "upsertMany by matcher":
+  #   var db = newFlatDb("test.db", false)
+  #   assert db.load() == true
+  #   db.drop()
+  #   let entry1 = %* {"user":"sn0re", "timestamp": 10.0}
+  #   let entry1Id = db.append(entry1)  
+  #   let entry2 = %* {"user":"peter", "timestamp": 10.0}
+  #   check entry1Id == db.upsert(entry2, equal("user", "sn0re"))
+  #   check db[entry1Id]["user"].getStr() == "peter"
+
 
 
   # test "matcher":

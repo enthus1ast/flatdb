@@ -364,10 +364,23 @@ template deleteReverse*(db: FlatDb, matcher: Matcher ) =
   ## deletes entry by matcher, respects `manualFlush`
   deleteImpl(db, db.queryIterReverse, matcher)
 
-proc upsert*(db: FlatDb, node: JsonNode, eid: EntryId = "", flush = db.manualFlush): EntryId {.discardable.} = 
+proc upsert*(db: FlatDb, node: JsonNode, eid: EntryId = "", flush = true): EntryId {.discardable.} = 
   ## inserts or updates an entry by its entryid, if flush == true db gets flushed
   if eid == "" or (not db.exists(eid)): 
     return db.append(node, eid, flush)
   else:
     db.update(eid, node, flush)
     return eid
+
+proc upsert*(db: FlatDb, node: JsonNode, matcher: Matcher, flush = true): EntryId {.discardable.} = 
+  let entry = db.queryOne(matcher)
+  if entry.isNil: 
+    return db.append(node, flush = flush)
+  else:
+    db[entry["_id"].getStr] = node
+    return entry["_id"].getStr
+
+# TODO ?
+# proc upsertMany*(db: FlatDb, node: JsonNode, matcher: Matcher, flush = db.manualFlush): EntryId {.discardable.} = 
+  ## updates entries by a matcher, if none was found insert new entry
+  ## if flush == true db gets flushed
