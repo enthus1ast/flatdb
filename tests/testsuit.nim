@@ -256,10 +256,19 @@ suite "flatdb test":
       if m["things"][1].getInt == 2:
         return true
       return false
-
     assert @[entry3] == db.query(m1)
     db.close()
   
+  test "upsert":
+    var db = newFlatDb("test.db", false)
+    assert db.load() == true
+    db.drop()
+    let entry1 = %* {"user":"sn0re", "timestamp": 10.0}
+    let entry1Id = db.append(entry1)  
+    let entry2 = %* {"user":"peter", "timestamp": 10.0}
+    check entry1Id == db.upsert(entry2, entry1Id)
+    check db[entry1Id]["user"].getStr() == "peter"
+
 
   # test "matcher":
   #   var tt1 = %* {"foo": 1}

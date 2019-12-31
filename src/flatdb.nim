@@ -74,7 +74,7 @@ template genId*(): EntryId =
   ## Mongo id compatible
   $genOid()
 
-proc append*(db: FlatDb, node: JsonNode, eid: EntryId = ""): EntryId = 
+proc append*(db: FlatDb, node: JsonNode, eid: EntryId = "", flush = true): EntryId {.discardable.}  = 
   ## appends a json node to the opened database file (line by line)
   ## even if the file already exists!
   var id: EntryId
@@ -88,7 +88,7 @@ proc append*(db: FlatDb, node: JsonNode, eid: EntryId = ""): EntryId =
     if not node.hasKey("_id"):
       node["_id"] = %* id
     db.stream.writeLine($node)
-  if not db.manualFlush:
+  if (not db.manualFlush) or flush:
     db.stream.flush()
   node.delete("_id") # we dont need the key in memory twice
   db.nodes.add(id, node) 
@@ -136,7 +136,7 @@ proc flush*(db: FlatDb) =
     allNodes.add(node)
   db.store(allNodes)
 
-proc load*(db: FlatDb): bool = 
+proc load*(db: FlatDb): bool {.discardable.} = 
   ## reads the complete flat db and returns true if load sucessfully, false otherwise
   var line: string  = ""
   var obj: JsonNode
@@ -232,7 +232,7 @@ template queryOneImpl(direction: untyped, matcher: Matcher) =
   for entry in direction(matcher):
     if matcher(entry):
       return entry
-  return nil  
+  return nil
 
 proc queryOne*(db: FlatDb, matcher: Matcher ): JsonNode = 
   ## just like query but returns the first match only (iteration stops after first)
@@ -363,3 +363,11 @@ template delete*(db: FlatDb, matcher: Matcher) =
 template deleteReverse*(db: FlatDb, matcher: Matcher ) =
   ## deletes entry by matcher, respects `manualFlush`
   deleteImpl(db, db.queryIterReverse, matcher)
+
+proc upsert*(db: FlatDb, node: JsonNode, eid: EntryId = "", flush = db.manualFlush): EntryId {.discardable.} = 
+  ## inserts or updates an entry by its entryid, if flush == true db gets flushed
+  if eid == "" or (not db.exists(eid)): 
+    return db.append(node, eid, flush)
+  else:
+    db.update(eid, node, flush)
+    return eid
