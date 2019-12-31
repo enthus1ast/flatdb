@@ -159,15 +159,19 @@ proc load*(db: FlatDb): bool =
     db.flush()
   return true
 
-proc `[]`*(db: FlatDb, key: string): JsonNode = 
-  return db.nodes[key]
-
-proc `[]=`*(db: FlatDb, key: string, value: JsonNode, flush = true) =
+proc update*(db: FlatDb, key: string, value: JsonNode, flush = true) =
   ## Updates an entry, if `flush == true` database gets flushed afterwards
   ## Updateing the db is expensive!
   db.nodes[key] = value
   if flush:
     db.flush()
+
+template `[]`*(db: FlatDb, key: string): JsonNode = 
+  db.nodes[key]
+
+template `[]=`*(db: FlatDb, key: string, value: JsonNode, flush = true) =
+  ## see `update`
+  db.update(key, value, flush)
 
 proc len*(db: FlatDb): int = 
   return db.nodes.len()
