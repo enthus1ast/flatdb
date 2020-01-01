@@ -25,11 +25,6 @@ type
     stream*: FileStream
     nodes*: FlatDbTable
     inmemory*: bool
-    manualFlush*: bool ## if this is set to true one has to manually call stream.flush() 
-                       ## else it gets called by every db.append()! 
-                       ## so set this to true if you want to append a lot of lines in bulk
-                       ## set this to false when finished and call db.stream.flush() once.
-                       ## TODO should this be db.stream.flush or db.flush??
   EntryId* = string
   Matcher* = proc (x: JsonNode): bool 
   QuerySettings* = ref object
@@ -68,13 +63,12 @@ proc newFlatDb*(path: string, inmemory: bool = false): FlatDb =
       open(path, fmWrite).close()    
     result.stream = newFileStream(path, fmReadWriteExisting)
   result.nodes = newFlatDbTable()
-  result.manualFlush = false
 
 template genId*(): EntryId = 
   ## Mongo id compatible
   $genOid()
 
-proc append*(db: FlatDb, node: JsonNode, eid: EntryId = "", flush = true): EntryId {.discardable.}  = 
+proc append*(db: FlatDb, node: JsonNode, eid: EntryId = "", doFlush = true): EntryId {.discardable.}  = 
   ## appends a json node to the opened database file (line by line)
   ## even if the file already exists!
   var id: EntryId
@@ -88,7 +82,7 @@ proc append*(db: FlatDb, node: JsonNode, eid: EntryId = "", flush = true): Entry
     if not node.hasKey("_id"):
       node["_id"] = %* id
     db.stream.writeLine($node)
-  if (not db.manualFlush) or flush:
+  if doFlush:
     db.stream.flush()
   node.delete("_id") # we dont need the key in memory twice
   db.nodes.add(id, node) 
@@ -117,11 +111,10 @@ proc store*(db: FlatDb, nodes: seq[JsonNode]) =
   #   echo "----------- Store got called on: ", db.path
   db.backup()
   db.drop()
-  db.manualFlush = true
   for node in nodes:
-    discard db.append(node)
+    discard db.append(node, doFlush = false)
   db.stream.flush()
-  db.manualFlush = false
+
 
 proc flush*(db: FlatDb) = 
   ## writes the whole memory database to file.
@@ -159,19 +152,19 @@ proc load*(db: FlatDb): bool {.discardable.} =
     db.flush()
   return true
 
-proc update*(db: FlatDb, key: string, value: JsonNode, flush = true) =
+proc update*(db: FlatDb, key: string, value: JsonNode, doFlush = true) =
   ## Updates an entry, if `flush == true` database gets flushed afterwards
   ## Updateing the db is expensive!
   db.nodes[key] = value
-  if flush:
+  if doFlush:
     db.flush()
 
 template `[]`*(db: FlatDb, key: string): JsonNode = 
   db.nodes[key]
 
-template `[]=`*(db: FlatDb, key: string, value: JsonNode, flush = true) =
+template `[]=`*(db: FlatDb, key: string, value: JsonNode, doFlush = true) =
   ## see `update`
-  db.update(key, value, flush)
+  db.update(key, value, doFlush)
 
 template len*(db: FlatDb): int = 
   db.nodes.len()
@@ -341,41 +334,41 @@ proc keepIf*(db: FlatDb, matcher: proc) =
   # TODO 
   db.store db.query matcher
 
-proc delete*(db: FlatDb, id: EntryId) =
-  ## deletes entry by id, respects `manualFlush`
+proc delete*(db: FlatDb, id: EntryId, doFlush = true) =
+  ## deletes entry by id
   var hit = false
   if db.nodes.hasKey(id):
       hit = true
       db.nodes.del(id)
-  if not db.manualFlush and hit:
+  if doFlush and hit:
     db.flush()
 
-template deleteImpl(db: FlatDb, direction: untyped, matcher: Matcher) = 
+template deleteImpl(db: FlatDb, direction: untyped, matcher: Matcher, doFlush = true) = 
   var hit = false
   for item in direction(matcher):
     hit = true
     db.nodes.del(item["_id"].getStr)
-  if (not db.manualFlush) and hit:
+  if doFlush and hit:
     db.flush()
-template delete*(db: FlatDb, matcher: Matcher) =
+template delete*(db: FlatDb, matcher: Matcher, doFlush = true) =
   ## deletes entry by matcher, respects `manualFlush`
-  deleteImpl(db, db.queryIter, matcher)
-template deleteReverse*(db: FlatDb, matcher: Matcher ) =
+  deleteImpl(db, db.queryIter, matcher, doFlush)
+template deleteReverse*(db: FlatDb, matcher: Matcher, doFlush = true) =
   ## deletes entry by matcher, respects `manualFlush`
-  deleteImpl(db, db.queryIterReverse, matcher)
+  deleteImpl(db, db.queryIterReverse, matcher, doFlush)
 
-proc upsert*(db: FlatDb, node: JsonNode, eid: EntryId = "", flush = true): EntryId {.discardable.} = 
+proc upsert*(db: FlatDb, node: JsonNode, eid: EntryId = "", doFlush = true): EntryId {.discardable.} = 
   ## inserts or updates an entry by its entryid, if flush == true db gets flushed
   if eid == "" or (not db.exists(eid)): 
-    return db.append(node, eid, flush)
+    return db.append(node, eid, doFlush)
   else:
-    db.update(eid, node, flush)
+    db.update(eid, node, doFlush)
     return eid
 
-proc upsert*(db: FlatDb, node: JsonNode, matcher: Matcher, flush = true): EntryId {.discardable.} = 
+proc upsert*(db: FlatDb, node: JsonNode, matcher: Matcher, doFlush = true): EntryId {.discardable.} = 
   let entry = db.queryOne(matcher)
   if entry.isNil: 
-    return db.append(node, flush = flush)
+    return db.append(node, doFlush = doFlush)
   else:
     db[entry["_id"].getStr] = node
     return entry["_id"].getStr
