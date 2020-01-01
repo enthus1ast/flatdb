@@ -279,6 +279,20 @@ suite "flatdb test":
     check entry1Id == db.upsert(entry2, equal("user", "sn0re"))
     check db[entry1Id]["user"].getStr() == "peter"
 
+  test "all":
+    var db = newFlatDb("test.db", false)
+    assert db.load() == true
+    db.drop()
+    let entry1 = %* {"user":"sn0re", "timestamp": 10.0} 
+    let entry2 = %* {"user":"peter", "timestamp": 10.0}
+    db.append(entry1)
+    db.append(entry2)
+    check toSeq(db.items) == @[entry1, entry2]
+    check toSeq(db.items(qs().skp(1))) == @[entry2]
+    check toSeq(db.itemsReverse) == @[entry2, entry1]
+    check toSeq(db.itemsReverse(qs().skp(1))) == @[entry1]
+
+
   ### TODO ?
   # test "upsertMany by matcher":
   #   var db = newFlatDb("test.db", false)

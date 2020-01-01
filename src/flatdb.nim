@@ -173,11 +173,11 @@ template getNode*(db: FlatDb, key: EntryId): Node =
   db.nodes.getNode($key)
 
 # ----------------------------- Query Iterators -----------------------------------------
-template queryIterImpl(direction: untyped, settings: QuerySettings, matcher: Matcher) = 
+template queryIterImpl(direction: untyped, settings: QuerySettings, matcher: Matcher = nil) = 
   var founds: int = 0
   var skipped: int = 0
   for id, entry in direction():
-    if matcher(entry):
+    if matcher.isNil or matcher(entry):
       if settings.skip != -1 and skipped < settings.skip:
         skipped.inc
         continue
@@ -219,6 +219,18 @@ proc queryReverse*(db: FlatDb, matcher: Matcher ): seq[JsonNode] =
 
 proc queryReverse*(db: FlatDb, settings: QuerySettings,  matcher: Matcher ): seq[JsonNode] =
   queryImpl(db.queryIterReverse, settings, matcher)
+
+# ----------------------------- all ----------------------------------------------
+iterator items*(db: FlatDb, settings = qs()): JsonNode =
+  queryIterImpl(db.nodes.pairs, settings)
+
+iterator itemsReverse*(db: FlatDb, settings = qs()): JsonNode =
+  queryIterImpl(db.nodes.pairsReverse, settings)
+
+# TODO ?
+# db.nodes.pairs
+# iterator pairs*(db: FlatDb): tuple(EntryId, JsonNode) =
+#   ## yields all key, values (unfiltered) from db
 
 # ----------------------------- QueryOne -----------------------------------------
 template queryOneImpl(direction: untyped, matcher: Matcher) = 

@@ -24,8 +24,10 @@ Be aware that if you change an entry in memory, you have to call "db.flush" manu
 changelog
 =========
 
+- 0.2.4
+  - iterator items/itemsReverse: yields all entries in db
 - 0.2.3 
-  - removed manual flush, all relevant functions 
+  - <b>removed manual flush</b>, all relevant functions 
     have an optional doFlush attribute (default true)
 - 0.2.2 
   - added upsert
