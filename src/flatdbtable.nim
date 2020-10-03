@@ -105,7 +105,7 @@ when isMainModule:
     assert table["id1"] == t1
     assert table["id2"] == t2
 
-    assert table["id1"].getOrDefault("foo").getNum() == 1
+    assert table["id1"].getOrDefault("foo").getInt() == 1
 
     assert toSeq(table.values) == @[t1,t2]
     assert toSeq(table.valuesReverse) == @[t2, t1]
