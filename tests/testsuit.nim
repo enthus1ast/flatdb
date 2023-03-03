@@ -15,7 +15,7 @@ suite "flatdb test":
     var tstStr = %* {"foo": "a string!!"}
     var tstFloat = %* {"foo": 1.337}
     var tstOther = %* {"rix": 1.337}
-  teardown: 
+  teardown:
     removeFile("test.db")
     removeFile("test.db.bak")
 
@@ -23,7 +23,7 @@ suite "flatdb test":
   test "basic tests":
     var db = newFlatDb("tests.db")
     assert db.nodes.len == 0
-    
+
     var eid = db.append(tst)
     assert db[eid] == tst
     assert db.len == 1
@@ -38,19 +38,19 @@ suite "flatdb test":
     assert db.exists( equal("foo", 1))
     assert db.notExists( equal("foo", 2))
     assert db.exists(lower("foo", 2) and higher("foo", 0))
-    
+
     var eidStr = db.append(tstStr)
     assert db.query(dbcontains("foo", "string")) == @[tstStr]
 
     var eidFloat = db.append(tstFloat)
     assert db.exists(between("foo", 1.0, 2.0))
     assert db.exists(between("foo", 0, 2))
-    
+
     assert not db.exists(has("rix"))
     var eidOther = db.append(tstOther)
     assert db.exists(has("rix"))
     db.close()
-    
+
   test "load/store":
     var db = newFlatDb("tests.db")
     discard db.load()
@@ -59,6 +59,7 @@ suite "flatdb test":
     discard db.append(tst)
     db.flush()
     check readFile("tests.db").strip().splitLines().len == 2
+    db.close()
 
   test "filters":
     var db = newFlatDb("tests.db")
@@ -67,7 +68,7 @@ suite "flatdb test":
     db.keepIf(lower("foo", 2))
     assert db.nodes.len() == 1
     assert db[eid1] == tst
-    
+
     db.delete(eid1)
     assert db.nodes.len() == 0
     db.close()
@@ -98,7 +99,7 @@ suite "flatdb test":
       var entry = %* {"foo": idx}
       assert each == entry
       idx.inc
-    db.close()    
+    db.close()
 
   test "keep if with custom matcher proc":
     var db = newFlatDb("test.db", false)
@@ -111,11 +112,11 @@ suite "flatdb test":
 
     db.keepIf(proc(x: JsonNode): bool = return x["foo"].getInt mod 2 == 0 )
     assert db.nodes.len == 50
-    
+
     db.keepIf(proc(x: JsonNode): bool = return x["foo"].getInt mod 2 != 0 )
     assert db.nodes.len == 0
-    
-    db.close()    
+
+    db.close()
 
   test "reversing and limits":
     block:
@@ -123,16 +124,16 @@ suite "flatdb test":
       db.drop()
 
       var entry1 = %* {"user":"sn0re", "id": 1}
-      discard db.append(entry1)  
+      discard db.append(entry1)
 
       var entry2 = %* {"user":"sn0re", "id": 2}
-      discard db.append(entry2)  
+      discard db.append(entry2)
 
       var entry3 = %* {"user":"sn0re", "id": 3}
-      discard db.append(entry3)  
+      discard db.append(entry3)
 
       var entry4 = %* {"user":"sn0re", "id": 4}
-      discard db.append(entry4)    
+      discard db.append(entry4)
 
 
       assert db.queryReverse( qs().lim(2).skp(2), equal("user", "sn0re") ) == [
@@ -150,7 +151,7 @@ suite "flatdb test":
       assert db.queryReverse( qs().lim(2), equal("user", "sn0re") ).reversed() == [
         entry3, entry4
       ]
-      db.close()    
+      db.close()
 
   test "update":
     # an example of an "update"
@@ -160,16 +161,16 @@ suite "flatdb test":
     # testdata
     var entry: JsonNode
     entry = %* {"user":"sn0re", "password": "asdflkjsaflkjsaf"}
-    discard db.append(entry)  
+    discard db.append(entry)
 
     entry = %* {"user":"klaus", "password": "hahahahsdfksafjj"}
-    let id =  db.append(entry)  
+    let id =  db.append(entry)
 
     # The actual update
     db.nodes[id]["password"] = % "123"
     db.flush()
-    db.close()  
-    
+    db.close()
+
     # Test if preserved to disk
     db = newFlatDb("test.db", false)
     discard db.load()
@@ -190,13 +191,13 @@ suite "flatdb test":
     # testdata
     var entry: JsonNode
     entry = %* {"user":"sn0re", "password": "pw1"}
-    discard db.append(entry)      
+    discard db.append(entry)
 
     entry = %* {"user":"sn0re", "password": "pw2"}
-    discard db.append(entry)      
+    discard db.append(entry)
 
     entry = %* {"user":"sn0re", "password": "pw3"}
-    discard db.append(entry)      
+    discard db.append(entry)
 
     entry = %* {"user":"klaus", "password": "asdflkjsaflkjsaf"}
     discard db.append(entry)
@@ -208,23 +209,23 @@ suite "flatdb test":
     let res = db.query((equal("user", "sn0re") and (equal("password", "pw2") or equal("password", "pw1"))))
     assert res[0]["password"].getStr == "pw1"
     assert res[1]["password"].getStr == "pw2"
-    db.close()    
+    db.close()
 
   test "another abstracted real world testcast":
     var db = newFlatDb("test.db", false)
     db.drop()
 
     var entry1 = %* {"user":"sn0re", "timestamp": 10.0}
-    discard db.append(entry1)  
+    discard db.append(entry1)
 
     var entry2 = %* {"user":"sn0re", "timestamp": 100.0}
-    discard db.append(entry2)  
+    discard db.append(entry2)
 
     var entry3 = %* {"user":"klaus", "timestamp": 200.0}
-    discard db.append(entry3)  
+    discard db.append(entry3)
 
     var entry4 = %* {"user":"klaus", "timestamp": 250.0}
-    discard db.append(entry4)  
+    discard db.append(entry4)
 
     assert @[entry3, entry4] == db.query higher("timestamp", 150.0)
     assert @[entry3] == db.query higher("timestamp", 150.0) and lower("timestamp", 210.0)
@@ -232,22 +233,22 @@ suite "flatdb test":
 
     var res = db.query(not(equal("user", "sn0re")))
     assert res[0] == db[res[0]["_id"].getStr]
-    db.close()    
+    db.close()
 
   test "custom query, with array access":
     var db = newFlatDb("test.db", false)
     assert db.load() == true
-    
+
     var entry1 = %* {"some": "json", "things": [1,2]}
     discard db.append(entry1)
-  
+
     var entry2 = %* {"some": "json"}
     discard db.append(entry2)
-  
+
     var entry3 = %* {"hahahahahahhaha": "json", "things": [1,2,3]}
     discard db.append(entry3)
-  
-    proc m1(m:JsonNode): bool = 
+
+    proc m1(m:JsonNode): bool =
       # a custom query example
       if not m.hasKey("things"):
         return false
@@ -258,32 +259,34 @@ suite "flatdb test":
       return false
     assert @[entry3] == db.query(m1)
     db.close()
-  
+
   test "upsert by id":
     var db = newFlatDb("test.db", false)
     assert db.load() == true
     db.drop()
     let entry1 = %* {"user":"sn0re", "timestamp": 10.0}
-    let entry1Id = db.append(entry1)  
+    let entry1Id = db.append(entry1)
     let entry2 = %* {"user":"peter", "timestamp": 10.0}
     check entry1Id == db.upsert(entry2, entry1Id)
     check db[entry1Id]["user"].getStr() == "peter"
+    db.close()
 
   test "upsert by matcher":
     var db = newFlatDb("test.db", false)
     assert db.load() == true
     db.drop()
     let entry1 = %* {"user":"sn0re", "timestamp": 10.0}
-    let entry1Id = db.append(entry1)  
+    let entry1Id = db.append(entry1)
     let entry2 = %* {"user":"peter", "timestamp": 10.0}
     check entry1Id == db.upsert(entry2, equal("user", "sn0re"))
     check db[entry1Id]["user"].getStr() == "peter"
+    db.close()
 
   test "all":
     var db = newFlatDb("test.db", false)
     assert db.load() == true
     db.drop()
-    let entry1 = %* {"user":"sn0re", "timestamp": 10.0} 
+    let entry1 = %* {"user":"sn0re", "timestamp": 10.0}
     let entry2 = %* {"user":"peter", "timestamp": 10.0}
     db.append(entry1)
     db.append(entry2)
@@ -291,6 +294,7 @@ suite "flatdb test":
     check toSeq(db.items(qs().skp(1))) == @[entry2]
     check toSeq(db.itemsReverse) == @[entry2, entry1]
     check toSeq(db.itemsReverse(qs().skp(1))) == @[entry1]
+    db.close()
 
 
   ### TODO ?
@@ -299,7 +303,7 @@ suite "flatdb test":
   #   assert db.load() == true
   #   db.drop()
   #   let entry1 = %* {"user":"sn0re", "timestamp": 10.0}
-  #   let entry1Id = db.append(entry1)  
+  #   let entry1Id = db.append(entry1)
   #   let entry2 = %* {"user":"peter", "timestamp": 10.0}
   #   check entry1Id == db.upsert(entry2, equal("user", "sn0re"))
   #   check db[entry1Id]["user"].getStr() == "peter"
@@ -324,7 +328,7 @@ suite "flatdb test":
   # var tst2 = %* {"foo": 2}
   # var eid = db.append( tst )
   # var eid2 = db.append( tst2 )
-  # db.len == 
+  # db.len ==
   # db.close()
 
   # assert @[entry1, entry2] == db[eid]

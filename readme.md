@@ -9,13 +9,13 @@ warning this is in development right now, expect some quirks (or even data losse
 what
 =====
 
-- holds your data in memory with a table + doubly linked list, to provide 
+- holds your data in memory with a table + doubly linked list, to provide
 	- fast hash acces with keys
 	- insertion order ( iterate in both directions )
 
 - persists the data to a `jsonl` (json line by line) file.
 - let you query the database (beginning at the top|first|oldest item  or the back|last|newest item)
-  - a query has to touch all entries in the db (it does this all in memory), 
+  - a query has to touch all entries in the db (it does this all in memory),
     but matcher procedures gets summarized, so its cheap to concat multiple matchers with `and` or `or`
 
 
@@ -24,12 +24,14 @@ Be aware that if you change an entry in memory, you have to call "db.flush" manu
 changelog
 =========
 
+- 0.2.6
+  - make testsuite run (close db after each test)
 - 0.2.4
   - iterator items/itemsReverse: yields all entries in db
-- 0.2.3 
-  - <b>removed manual flush</b>, all relevant functions 
+- 0.2.3
+  - <b>removed manual flush</b>, all relevant functions
     have an optional doFlush attribute (default true)
-- 0.2.2 
+- 0.2.2
   - added upsert
 
 
@@ -57,18 +59,18 @@ echo db[idFirst].getOrDefault("foo").getStr()
 
 # query the db, this for now touches every item in the db
 # and find the match for you. (beginning from the top/the oldest item)
-echo db.query equal("foo", "baa") 
+echo db.query equal("foo", "baa")
 echo db.queryOne equal("foo", "baz") and equal("hallo", "nim")
 echo db.query(  (equal("foo", "baz") and equal("hallo", "nim")) or lower("long", 100) )
 
 
-# you decide if it makes more sense for you to start the 
+# you decide if it makes more sense for you to start the
 # query at the end of the table (at the newest item); use the *Reverse procs.
-echo db.queryReverse equal("foo", "baa") 
+echo db.queryReverse equal("foo", "baa")
 echo db.queryReverse(  (equal("foo", "baz") and equal("hallo", "nim")) or lower("long", 100) )
 
 
-# if you use one of the *Reverse procs, the result set is reversed as well. 
+# if you use one of the *Reverse procs, the result set is reversed as well.
 # So to get the items in their natural order (flatdb preserves insertion order)
 # one has to utilize the `reversed` proc from `algorithm` module.
 import algorithm
@@ -80,7 +82,7 @@ db.delete idFirst
 
 # Delete by matcher
 echo db.nodes
-db.delete lower("long", 400) 
+db.delete lower("long", 400)
 echo db.nodes
 
 # Kinda "transaction"
@@ -95,7 +97,7 @@ db.flush()
 
 # Query settings
 # use `newQuerySettings` or the `qs()` alias to create "QuerySettings", where you could
-# - limit the the result set with `lmt(n)` or   
+# - limit the the result set with `lmt(n)` or
 # - skip over matches with `skp(n)`
 # this example skips over the first 5 matches and limits the result set to 10 items.
 echo db.query(qs().skp(5).lmt(10) , higher("someKey", 10) and equal("room", "lobby") )
