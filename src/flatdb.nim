@@ -267,80 +267,80 @@ proc notExists*(db: FlatDb, matcher: Matcher): bool =
   return not db.exists(matcher)
 
 # ----------------------------- Matcher -----------------------------------------
-proc equal*(key: string, val: string): proc {.inline.} = 
-  return proc (x: JsonNode): bool  = 
+proc equal*(key: string, val: string): Matcher {.inline.} =
+  return proc (x: JsonNode): bool =
     return x.getOrDefault(key).getStr() == val
-proc equal*(key: string, val: int): proc {.inline.} = 
-  return proc (x: JsonNode): bool  = 
+proc equal*(key: string, val: int): Matcher {.inline.} =
+  return proc (x: JsonNode): bool  =
     return x.getOrDefault(key).getInt() == val
-proc equal*(key: string, val: float): proc {.inline.} = 
-  return proc (x: JsonNode): bool  = 
+proc equal*(key: string, val: float): Matcher {.inline.} =
+  return proc (x: JsonNode): bool  =
     return x.getOrDefault(key).getFloat() == val
-proc equal*(key: string, val: bool): proc {.inline.} = 
-  return proc (x: JsonNode): bool  = 
+proc equal*(key: string, val: bool): Matcher {.inline.} =
+  return proc (x: JsonNode): bool  =
     return x.getOrDefault(key).getBool() == val
 
-proc lower*(key: string, val: int): proc {.inline.} = 
+proc lower*(key: string, val: int): Matcher {.inline.} =
   return proc (x: JsonNode): bool = x.getOrDefault(key).getInt < val
-proc lower*(key: string, val: float): proc {.inline.} = 
+proc lower*(key: string, val: float): Matcher {.inline.} =
   return proc (x: JsonNode): bool = x.getOrDefault(key).getFloat < val
-proc lowerEqual*(key: string, val: int): proc {.inline.} = 
+proc lowerEqual*(key: string, val: int): Matcher {.inline.} =
   return proc (x: JsonNode): bool = x.getOrDefault(key).getInt <= val
-proc lowerEqual*(key: string, val: float): proc {.inline.} = 
+proc lowerEqual*(key: string, val: float): Matcher {.inline.} =
   return proc (x: JsonNode): bool = x.getOrDefault(key).getFloat <= val
 
-proc higher*(key: string, val: int): proc {.inline.} = 
+proc higher*(key: string, val: int): Matcher {.inline.} =
   return proc (x: JsonNode): bool = x.getOrDefault(key).getInt > val
-proc higher*(key: string, val: float): proc {.inline.} = 
+proc higher*(key: string, val: float): Matcher {.inline.} =
   return proc (x: JsonNode): bool = x.getOrDefault(key).getFloat > val
-proc higherEqual*(key: string, val: int): proc {.inline.} = 
+proc higherEqual*(key: string, val: int): Matcher {.inline.} =
   return proc (x: JsonNode): bool = x.getOrDefault(key).getInt >= val
-proc higherEqual*(key: string, val: float): proc {.inline.} = 
+proc higherEqual*(key: string, val: float): Matcher {.inline.} =
   return proc (x: JsonNode): bool = x.getOrDefault(key).getFloat >= val
 
-proc dbcontains*(key: string, val: string): proc {.inline.} = 
-  return proc (x: JsonNode): bool = 
+proc dbcontains*(key: string, val: string): Matcher {.inline.} =
+  return proc (x: JsonNode): bool =
     let str = x.getOrDefault(key).getStr()
     return str.contains(val)
-proc dbcontainsInsensitive*(key: string, val: string): proc {.inline.} = 
-  return proc (x: JsonNode): bool = 
+proc dbcontainsInsensitive*(key: string, val: string): Matcher {.inline.} =
+  return proc (x: JsonNode): bool =
     let str = x.getOrDefault(key).getStr()
     return str.toLowerAscii().contains(val.toLowerAscii())
 
-proc between*(key: string, fromVal:float, toVal: float): proc {.inline.} =
-  return proc (x: JsonNode): bool = 
+proc between*(key: string, fromVal:float, toVal: float): Matcher {.inline.} =
+  return proc (x: JsonNode): bool =
     let val = x.getOrDefault(key).getFloat
     val > fromVal and val < toVal
-proc between*(key: string, fromVal:int, toVal: int): proc {.inline.} =
-  return proc (x: JsonNode): bool = 
+proc between*(key: string, fromVal:int, toVal: int): Matcher {.inline.} =
+  return proc (x: JsonNode): bool =
     let val = x.getOrDefault(key).getInt
     val > fromVal and val < toVal
-proc betweenEqual*(key: string, fromVal:float, toVal: float): proc {.inline.} =
-  return proc (x: JsonNode): bool = 
+proc betweenEqual*(key: string, fromVal:float, toVal: float): Matcher {.inline.} =
+  return proc (x: JsonNode): bool =
     let val = x.getOrDefault(key).getFloat
     val >= fromVal and val <= toVal
-proc betweenEqual*(key: string, fromVal:int, toVal: int): proc {.inline.} =
-  return proc (x: JsonNode): bool = 
+proc betweenEqual*(key: string, fromVal:int, toVal: int): Matcher {.inline.} =
+  return proc (x: JsonNode): bool =
     let val = x.getOrDefault(key).getInt
     val >= fromVal and val <= toVal
 
-proc has*(key: string): proc {.inline.} = 
+proc has*(key: string): Matcher {.inline.} =
   return proc (x: JsonNode): bool = return x.hasKey(key)
 
-proc `and`*(p1, p2: proc (x: JsonNode): bool): proc (x: JsonNode): bool =
+proc `and`*(p1, p2: proc (x: JsonNode): bool): Matcher {.inline.} =
   return proc (x: JsonNode): bool = return p1(x) and p2(x)
 
-proc `or`*(p1, p2: proc (x: JsonNode): bool): proc (x: JsonNode): bool =
+proc `or`*(p1, p2: proc (x: JsonNode): bool): Matcher {.inline.} =
   return proc (x: JsonNode): bool = return p1(x) or p2(x)
 
-proc `not`*(p1: proc (x: JsonNode): bool): proc (x: JsonNode): bool =
+proc `not`*(p1: proc (x: JsonNode): bool): Matcher {.inline.} =
   return proc (x: JsonNode): bool = return not p1(x)
 
-proc close*(db: FlatDb) = 
+proc close*(db: FlatDb) =
   db.stream.flush()
   db.stream.close()
 
-proc keepIf*(db: FlatDb, matcher: proc) = 
+proc keepIf*(db: FlatDb, matcher: proc) =
   ## filters the database file, only lines that match `matcher`
   ## will be in the new file.
   # TODO 
@@ -369,17 +369,17 @@ template deleteReverse*(db: FlatDb, matcher: Matcher, doFlush = true) =
   ## deletes entry by matcher, respects `manualFlush`
   deleteImpl(db, db.queryIterReverse, matcher, doFlush)
 
-proc upsert*(db: FlatDb, node: JsonNode, eid: EntryId = "", doFlush = true): EntryId {.discardable.} = 
+proc upsert*(db: FlatDb, node: JsonNode, eid: EntryId = "", doFlush = true): EntryId {.discardable.} =
   ## inserts or updates an entry by its entryid, if flush == true db gets flushed
-  if eid == "" or (not db.exists(eid)): 
+  if eid == "" or (not db.exists(eid)):
     return db.append(node, eid, doFlush)
   else:
     db.update(eid, node, doFlush)
     return eid
 
-proc upsert*(db: FlatDb, node: JsonNode, matcher: Matcher, doFlush = true): EntryId {.discardable.} = 
+proc upsert*(db: FlatDb, node: JsonNode, matcher: Matcher, doFlush = true): EntryId {.discardable.} =
   let entry = db.queryOne(matcher)
-  if entry.isNil: 
+  if entry.isNil:
     return db.append(node, doFlush = doFlush)
   else:
     db[entry["_id"].getStr] = node

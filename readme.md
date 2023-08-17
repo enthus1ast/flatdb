@@ -23,7 +23,8 @@ Be aware that if you change an entry in memory, you have to call "db.flush" manu
 
 changelog
 =========
-
+- 0.2.7
+  - Fix compilation for Nim 2.0
 - 0.2.6
   - make testsuite run (close db after each test)
 - 0.2.4
