@@ -8,6 +8,64 @@ import unittest
 import strutils
 import algorithm
 
+suite "flatdbtable":
+  test "basics":
+    var t1 = %* {"foo": 1}
+    var t2 = %* {"foo": 2}
+    var table = newFlatDbTable()
+    table.add("id1", t1)
+    table.add("id2", t2)
+
+    check table["id1"] == t1
+    check table["id2"] == t2
+
+    check table["id1"].getOrDefault("foo").getInt() == 1
+
+    check toSeq(table.values) == @[t1,t2]
+    check toSeq(table.valuesReverse) == @[t2, t1]
+
+    check toSeq(table.pairs) == @[("id1", t1), ("id2", t2)]
+    check toSeq(table.pairsReverse) == @[("id2", t2),("id1", t1)]
+
+    check table.len == 2
+    table.del("id2")
+    check toSeq(table.values) == @[t1]
+    check toSeq(table.valuesReverse) == @[t1]
+    check table.len == 1
+
+  test "clear":
+    var t1 = %* {"foo": 1}
+    var t2 = %* {"foo": 2}
+    var table = newFlatDbTable()
+    table.add("id1", t1)
+    table.add("id2", t2)
+    table.clear()
+    check table.len == 0
+    check toSeq(table.values).len == 0
+    check toSeq(table.valuesReverse).len == 0
+
+  test "change/update":
+    var t1 = %* {"foo": 1}
+    var t2 = %* {"foo": 2}
+    var table = newFlatDbTable()
+    table.add("id1", t1)
+    table.add("id2", t2)
+
+    let entry = table["id1"]
+    entry["foo"] = % "klaus"
+    check toSeq(table.pairs) == @[("id1", %* {"foo": "klaus"} ), ("id2", t2)]
+
+    table["id2"] = %* {"klaus": "klauspeter"}
+    check toSeq(table.pairs) == @[("id1", %* {"foo": "klaus"} ), ("id2",  %* {"klaus": "klauspeter"} )]
+
+  # block:
+  #   var table = newFlatDbTable()
+  #   for idx in 0..10_000:
+  #     var t1 = %* {"foo": idx}
+  #     table.add($idx,t1)
+  #   for each in table.valuesReverse():
+  #     echo each
+
 suite "flatdb test":
   setup:
     var tst = %* {"foo": 1}
@@ -19,9 +77,8 @@ suite "flatdb test":
     removeFile("test.db")
     removeFile("test.db.bak")
 
-
   test "basic tests":
-    var db = newFlatDb("tests.db")
+    var db = newFlatDb("test.db")
     assert db.nodes.len == 0
 
     var eid = db.append(tst)
@@ -52,17 +109,17 @@ suite "flatdb test":
     db.close()
 
   test "load/store":
-    var db = newFlatDb("tests.db")
+    var db = newFlatDb("test.db")
     discard db.load()
     db.drop()
     discard db.append(tst)
     discard db.append(tst)
     db.flush()
-    check readFile("tests.db").strip().splitLines().len == 2
+    check readFile("test.db").strip().splitLines().len == 2
     db.close()
 
   test "filters":
-    var db = newFlatDb("tests.db")
+    var db = newFlatDb("test.db")
     var eid1 = db.append(tst)
     var eid2 = db.append(tst2)
     db.keepIf(lower("foo", 2))
@@ -323,7 +380,7 @@ suite "flatdb test":
   #   discard db.append(tt5)
 # block:
   # TODO save some fun for later
-  # var db = newFlatDb("tests.db")
+  # var db = newFlatDb("test.db")
   # var tst = %* {"foo": 1}
   # var tst2 = %* {"foo": 2}
   # var eid = db.append( tst )
@@ -333,8 +390,6 @@ suite "flatdb test":
 
   # assert @[entry1, entry2] == db[eid]
   # assert @[entry1, entry2] == repr db.getNode(eid)
-
-
 
 
 

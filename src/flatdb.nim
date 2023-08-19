@@ -1,13 +1,13 @@
 #
 #
 #                     flatdb
-#        (c) Copyright 2017 David Krause
+#        (c) Copyright 2023 David Krause
 #
 #    See the file "licence", included in this
 #    distribution, for details about the copyright.
 
 import json, streams, hashes, sequtils, os, random, strutils, oids
-import flatdbtable
+import flatdb/flatdbtable
 export flatdbtable
 randomize() # TODO call this at Main?
 
@@ -53,22 +53,22 @@ proc qs*(): QuerySettings =
   result = newQuerySettings()
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-proc newFlatDb*(path: string, inmemory: bool = false): FlatDb = 
+proc newFlatDb*(path: string, inmemory: bool = false): FlatDb =
   # if inmemory is set to true the filesystem gets not touched at all.
   result = FlatDb()
   result.path = path
   result.inmemory = inmemory
   if not inmemory:
     if not fileExists(path):
-      open(path, fmWrite).close()    
+      open(path, fmWrite).close()
     result.stream = newFileStream(path, fmReadWriteExisting)
   result.nodes = newFlatDbTable()
 
-template genId*(): EntryId = 
+template genId*(): EntryId =
   ## Mongo id compatible
   $genOid()
 
-proc append*(db: FlatDb, node: JsonNode, eid: EntryId = "", doFlush = true): EntryId {.discardable.}  = 
+proc append*(db: FlatDb, node: JsonNode, eid: EntryId = "", doFlush = true): EntryId {.discardable.} =
   ## appends a json node to the opened database file (line by line)
   ## even if the file already exists!
   var id: EntryId
@@ -85,7 +85,7 @@ proc append*(db: FlatDb, node: JsonNode, eid: EntryId = "", doFlush = true): Ent
   if doFlush:
     db.stream.flush()
   node.delete("_id") # we dont need the key in memory twice
-  db.nodes.add(id, node) 
+  db.nodes.add(id, node)
   return id
   
 proc backup*(db: FlatDb) =
@@ -95,7 +95,7 @@ proc backup*(db: FlatDb) =
   removeFile(backupPath) # delete old backup
   copyFile(db.path, backupPath) # copy current db to backup path
 
-proc drop*(db: FlatDb) = 
+proc drop*(db: FlatDb) =
   ## DELETES EVERYTHING
   ## deletes the whole database.
   ## after this call we can use the database as normally
@@ -103,7 +103,7 @@ proc drop*(db: FlatDb) =
   db.stream = newFileStream(db.path, fmWrite)
   db.nodes.clear()
 
-proc store*(db: FlatDb, nodes: seq[JsonNode]) = 
+proc store*(db: FlatDb, nodes: seq[JsonNode]) =
   ## write every json node to the db.
   ## overwriteing everything.
   ## but creates a backup first
@@ -116,7 +116,7 @@ proc store*(db: FlatDb, nodes: seq[JsonNode]) =
   db.stream.flush()
 
 
-proc flush*(db: FlatDb) = 
+proc flush*(db: FlatDb) =
   ## writes the whole memory database to file.
   ## overwrites everything.
   ## If you have done changes in db.nodes you have to call db.flush() to sync it to the filesystem
@@ -159,21 +159,21 @@ proc update*(db: FlatDb, key: string, value: JsonNode, doFlush = true) =
   if doFlush:
     db.flush()
 
-template `[]`*(db: FlatDb, key: string): JsonNode = 
+template `[]`*(db: FlatDb, key: string): JsonNode =
   db.nodes[key]
 
 template `[]=`*(db: FlatDb, key: string, value: JsonNode, doFlush = true) =
   ## see `update`
   db.update(key, value, doFlush)
 
-template len*(db: FlatDb): int = 
+template len*(db: FlatDb): int =
   db.nodes.len()
 
 template getNode*(db: FlatDb, key: EntryId): Node =
   db.nodes.getNode($key)
 
 # ----------------------------- Query Iterators -----------------------------------------
-template queryIterImpl(direction: untyped, settings: QuerySettings, matcher: Matcher = nil) = 
+template queryIterImpl(direction: untyped, settings: QuerySettings, matcher: Matcher = nil) =
   var founds: int = 0
   var skipped: int = 0
   for id, entry in direction():
@@ -188,22 +188,22 @@ template queryIterImpl(direction: untyped, settings: QuerySettings, matcher: Mat
       entry["_id"] = % id
       yield entry
 
-iterator queryIter*(db: FlatDb, matcher: Matcher ): JsonNode = 
+iterator queryIter*(db: FlatDb, matcher: Matcher ): JsonNode =
   let settings = newQuerySettings()
   queryIterImpl(db.nodes.pairs, settings, matcher)
 
-iterator queryIterReverse*(db: FlatDb, matcher: Matcher ): JsonNode = 
+iterator queryIterReverse*(db: FlatDb, matcher: Matcher ): JsonNode =
   let settings = newQuerySettings()
   queryIterImpl(db.nodes.pairsReverse, settings, matcher)
 
-iterator queryIter*(db: FlatDb, settings: QuerySettings,  matcher: Matcher ): JsonNode = 
+iterator queryIter*(db: FlatDb, settings: QuerySettings,  matcher: Matcher ): JsonNode =
   queryIterImpl(db.nodes.pairs, settings, matcher)
 
-iterator queryIterReverse*(db: FlatDb, settings: QuerySettings, matcher: Matcher ): JsonNode = 
+iterator queryIterReverse*(db: FlatDb, settings: QuerySettings, matcher: Matcher ): JsonNode =
   queryIterImpl(db.nodes.pairsReverse, settings, matcher)
 
 # ----------------------------- Query -----------------------------------------
-template queryImpl*(direction: untyped, settings: QuerySettings, matcher: Matcher)  = 
+template queryImpl*(direction: untyped, settings: QuerySettings, matcher: Matcher) =
   return toSeq(direction(settings, matcher))
 
 proc query*(db: FlatDb, matcher: Matcher ): seq[JsonNode] =
@@ -217,7 +217,7 @@ proc queryReverse*(db: FlatDb, matcher: Matcher ): seq[JsonNode] =
   let settings = newQuerySettings()
   queryImpl(db.queryIterReverse, settings, matcher)
 
-proc queryReverse*(db: FlatDb, settings: QuerySettings,  matcher: Matcher ): seq[JsonNode] =
+proc queryReverse*(db: FlatDb, settings: QuerySettings, matcher: Matcher ): seq[JsonNode] =
   queryImpl(db.queryIterReverse, settings, matcher)
 
 # ----------------------------- all ----------------------------------------------
@@ -233,20 +233,20 @@ iterator itemsReverse*(db: FlatDb, settings = qs()): JsonNode =
 #   ## yields all key, values (unfiltered) from db
 
 # ----------------------------- QueryOne -----------------------------------------
-template queryOneImpl(direction: untyped, matcher: Matcher) = 
+template queryOneImpl(direction: untyped, matcher: Matcher) =
   for entry in direction(matcher):
     if matcher(entry):
       return entry
   return nil
 
-proc queryOne*(db: FlatDb, matcher: Matcher ): JsonNode = 
+proc queryOne*(db: FlatDb, matcher: Matcher): JsonNode =
   ## just like query but returns the first match only (iteration stops after first)
   queryOneImpl(db.queryIter, matcher)
-proc queryOneReverse*(db: FlatDb, matcher: Matcher ): JsonNode = 
+proc queryOneReverse*(db: FlatDb, matcher: Matcher): JsonNode =
   ## just like query but returns the first match only (iteration stops after first)
   queryOneImpl(db.queryIterReverse, matcher)
 
-proc queryOne*(db: FlatDb, id: EntryId, matcher: Matcher ): JsonNode = 
+proc queryOne*(db: FlatDb, id: EntryId, matcher: Matcher): JsonNode =
   ## returns the entry with `id` and also matching on matcher, if you have the _id, use it, its fast.
   if not db.nodes.hasKey(id):
     return nil
@@ -254,7 +254,7 @@ proc queryOne*(db: FlatDb, id: EntryId, matcher: Matcher ): JsonNode =
     return db.nodes[id]
   return nil
 
-proc exists*(db: FlatDb, id: EntryId): bool = 
+proc exists*(db: FlatDb, id: EntryId): bool =
   ## returns true if entry with given EntryId exists
   return db.nodes.hasKey(id)
 

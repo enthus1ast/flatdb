@@ -8,3 +8,4 @@ test/*.db
 test/*.db.bak
 test/*.exe
 *nimcache*
+tests/testsuit

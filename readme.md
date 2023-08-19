@@ -23,6 +23,10 @@ Be aware that if you change an entry in memory, you have to call "db.flush" manu
 
 changelog
 =========
+- 0.2.8
+  - Small cleanups; move tests to testsuit
+  - Move flatdbtable to flatdb folder, make nimble happy
+  - Fix: Remove test.db after the tests
 - 0.2.7
   - Fix compilation for Nim 2.0
 - 0.2.6
